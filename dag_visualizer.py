@@ -35,8 +35,8 @@ class graph_drawer:
             self.edges.add((parent,r.id))
             # edge = pydot.Edge(parent,r.id)
             # self.image.add_edge(edge)
-            if r.links is None:
-                return
+            if r.is_leaf():
+                break
             new_roots = r.links
             self.draw_branch(new_roots,r.id)
 
@@ -59,10 +59,10 @@ if __name__ == '__main__':
     node2 = Node("two",2)
     graph = DAG([node1],[node2])
 
-    for i in range(1,15):
-            j = i
-            print("adding " + str(i))
-            graph.add_multiple([Node(str(i),1),Node(str(j),1)])
+    # for i in range(1,5):
+    #         j = i + 10
+    #         print("adding " + str(i))
+    #         graph.add_multiple([Node(str(i),1),Node(str(j),1)])
 
     print("graph completed, now drawing")
     view = graph_drawer(graph)
