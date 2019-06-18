@@ -57,5 +57,34 @@ class TestDAGMethods(unittest.TestCase):
 
         self.assertEqual(graph.root,[node3,node4])
 
+    def test_find_hash(self):
+        node1 = Node("one",1)
+        node2 = Node("two",2)
+
+        graph = DAG([node1],[node2])
+        x = hash(node2.payload + node1.hash)
+        self.assertEqual(graph.get_node(x),node2)
+        x = hash(node1.payload)
+        self.assertEqual(graph.get_node(x),node1)
+
+    def test_missing_node(self):
+        node1 = Node("one",1)
+        node2 = Node("two",2)
+        graph = DAG([node1],[node2])
+        self.assertEqual(graph.get_node(100),None)
+
+    def test_find_node_large_dag(self):
+        node1 = Node("one",1)
+        node2 = Node("two",2)
+        graph = DAG([node1],[node2])
+
+        for i in range(1,15):
+            j = i
+            graph.add_multiple([Node(str(i),1),Node(str(j),1)])
+
+        self.assertEqual(graph.get_node(100),None)
+
+
+
 if __name__ == '__main__':
     unittest.main()

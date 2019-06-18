@@ -58,9 +58,28 @@ class DAG:
         for n in nodes:
             self.root.append(n)
 
-    # def find_node(self,hash):
-    
+    def get_node(self,hash):
+        target = None
+        for r in self.root:
+            if r.hash is hash:
+                return r
+            for l in r.links:
+                target = self.find_node(hash,l)
+                if target is not None:
+                    return target
 
+        print("the node with that hash cannot be found")
+        return None
+
+    def find_node(self,hash,node):
+        if node.hash == hash:
+            return node
+        if node.is_leaf():
+            return None
+        for l in node.links:
+            target = self.find_node(hash,l)
+            if target is not None:
+                return target
 
 if __name__ == '__main__':
     node1 = Node("one",2)

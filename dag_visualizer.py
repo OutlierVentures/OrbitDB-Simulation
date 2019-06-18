@@ -19,6 +19,7 @@ class graph_drawer:
     def draw_parents(self,base):
         for r in base:
             node = pydot.Node(r.id,style ="filled",fillcolor="green")
+            print("Node " + str(r.id) + " drawn")
             self.image.add_node(node)
             self.draw_branch(r.links,r.id)
 
@@ -29,6 +30,7 @@ class graph_drawer:
     def draw_branch(self,base,parent):
         for r in base:
             node = pydot.Node(r.id,style ="filled",fillcolor="yellow")
+            print("Node " + str(r.id) + " drawn")
             self.image.add_node(node)
             self.edges.add((parent,r.id))
             # edge = pydot.Edge(parent,r.id)
@@ -41,17 +43,27 @@ class graph_drawer:
 
 
 if __name__ == '__main__':
-    node1 = Node("one",2)
-    node2 = Node("two",3)
-    node3 = Node("three",4)
-    node4 = Node("four",5)
-    node5 = Node("six",6)
-    node6 = Node("seven",7)
-    node7 = Node("eight",8)
+    # node1 = Node("one",2)
+    # node2 = Node("two",3)
+    # node3 = Node("three",4)
+    # node4 = Node("four",5)
+    # node5 = Node("six",6)
+    # node6 = Node("seven",7)
+    # node7 = Node("eight",8)
+    #
+    # graph = DAG([node1,node5],[node2])
+    # graph.add_multiple([node3,node4,node6])
+    # graph.add(node7)
 
-    graph = DAG([node1,node5],[node2])
-    graph.add_multiple([node3,node4,node6])
-    graph.add(node7)
+    node1 = Node("one",1)
+    node2 = Node("two",2)
+    graph = DAG([node1],[node2])
 
+    for i in range(1,15):
+            j = i
+            print("adding " + str(i))
+            graph.add_multiple([Node(str(i),1),Node(str(j),1)])
+
+    print("graph completed, now drawing")
     view = graph_drawer(graph)
     view.draw()
