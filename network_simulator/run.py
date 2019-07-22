@@ -6,11 +6,11 @@ from nodemanager import PingHandler
 from nodemanager import PeerRequestHandler
 from networkx.drawing.nx_agraph import graphviz_layout
 
-NODE_COUNT = 50
+NODE_COUNT = 3
 DURATION = 5
 KB = 1024/8
-VISUALIZATION = True
-#VISUALIZATION = False
+#VISUALIZATION = True
+VISUALIZATION = False
 
 def managed_peer(name, env):
     p = Node(name, env)
@@ -20,7 +20,6 @@ def managed_peer(name, env):
 
     return p
 
-
 def create_peers(peerserver, num):
     peers = []
     for i in range(num):
@@ -28,16 +27,18 @@ def create_peers(peerserver, num):
 
         connection_manager = p.properties[0]
         x = random.randint(0,2)
+        #x = 0
+        print "connecting to server"
         connection_manager.connect_peer(peerserver[x])
         peers.append(p)
-        p.connect(peerserver[x])
-
-    for p in peers[:int(num * 0.5)]:
-        p.up = max(384, random.gauss(12000, 6000)) * KB
-        p.down = max(128, random.gauss(4800, 2400)) * KB
-
-    for p in peers[int(num * 0.5):]:
-        p.up = p.down = max(10000, random.gauss(100000, 50000)) * KB
+        #p.connect(peerserver[x])
+    #
+    # for p in peers[:int(num * 0.5)]:
+    #     p.up = max(384, random.gauss(12000, 6000)) * KB
+    #     p.down = max(128, random.gauss(4800, 2400)) * KB
+    #
+    # for p in peers[int(num * 0.5):]:
+    #     p.up = p.down = max(10000, random.gauss(100000, 50000)) * KB
 
     return peers
 

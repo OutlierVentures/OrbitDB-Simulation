@@ -1,4 +1,5 @@
 import simpy
+import random
 from message import Message
 
 class Link(object):
@@ -8,6 +9,7 @@ class Link(object):
         self.sender = sender
         self.receiver = receiver
         self.start = env.now
+        print "link created between " + str(self.sender.id) + " and "  + str(self.receiver.id) + " at time " + str(self.start)
 
     def __repr__(self):
         return "Connection between " + str(self.sender) + " -> " + str(self.receiver)
@@ -18,7 +20,7 @@ class Link(object):
 
     def transfer(self,msg):
         size = msg.size
-        delay = (size/self.sender.up) + (size/self.receiver.down)
+        delay = self.sender.up + self.receiver.down
         yield self.env.timeout(delay)
         if self.receiver.is_connected(msg.sender):
             self.receiver.messages.put(msg)
@@ -32,9 +34,6 @@ class Service(object):
 
 class Node(object):
 
-    KB = 1024 / 8
-    up = 1200*KB
-    down = 16000*KB
 
     def __init__(self,id,env):
         self.id = id
@@ -44,6 +43,10 @@ class Node(object):
         self.is_active = True
         self.properties = []
         self.disconnecter = []
+        self.node_finder = None
+        self.up = random.randint(1,10)
+        self.down = random.randint(1,self.up)
+
         env.process(self.run())
 
     def __repr__(self):
@@ -55,6 +58,8 @@ class Node(object):
             self.links[node] = Link(self.env, self, node)
             if not node.is_connected(self):
                 node.connect(self)
+
+        return self.links[node]
 
     def disconnect(self, node):
         if self.is_connected(node):
