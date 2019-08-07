@@ -1,93 +1,170 @@
-import simpy
+import copy
 import random
-from message import Message
+import queue
 
-class Link(object):
+from bloom_clock.bloom_clock import BloomClock
+from network_simulator.clock import LamportClock
+from crdt.gset import GSet
+import operator
 
-    def __init__(self, env, sender, receiver):
-        self.env = env
-        self.sender = sender
-        self.receiver = receiver
-        self.start = env.now
-        print "link created between " + str(self.sender.id) + " and "  + str(self.receiver.id) + " at time " + str(self.start)
+from network_simulator.conflict import Conflict
+from network_simulator.message import Message
 
-    def __repr__(self):
-        return "Connection between " + str(self.sender) + " -> " + str(self.receiver)
+from bloom_clock.bloom_clock_operations import *
 
-    @property
-    def bandwidth(self):
-        return min(self.sender.up, self.receiver.down)
-
-    def transfer(self,msg):
-        size = msg.size
-        delay = self.sender.up + self.receiver.down
-        yield self.env.timeout(delay)
-        if self.receiver.is_connected(msg.sender):
-            self.receiver.messages.put(msg)
-
-    def send(self, msg,connect=True):
-        self.env.process(self.transfer(msg))
-
-class Service(object):
-    def handle_message(self, receiving_peer, msg):
-        pass
 
 class Node(object):
 
+    def __init__(self, id, length):
 
-    def __init__(self,id,env):
         self.id = id
-        self.env = env
-        self.messages = simpy.Store(env)
-        self.links = dict()
-        self.is_active = True
-        self.properties = []
-        self.disconnecter = []
-        self.node_finder = None
-        self.up = random.randint(1,10)
-        self.down = random.randint(1,self.up)
+        self.messages = [[] for i in range(length * 50)]
+        self.bloom_messages = [[] for i in range(length * 50)]
+        self.up = random.randint(1, 10)
+        self.down = random.randint(1, self.up)
+        self.is_dropped = False
+        self.reactivation_time = -1
+        self.incrementer = None
+        self.message_queue = queue.Queue()
+        self.bloom_message_queue = queue.Queue()
+        self.pending_messages = queue.Queue()
+        self.bloom_pending_messages = queue.Queue()
+        self.stats = None
+        self.bloom_stats = None
 
-        env.process(self.run())
+        self.clock = LamportClock()
+        self.bloom_clock = BloomClock(length,0.1)
+        self.operations = GSet()
+
+        # env.process(self.run())
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.id)
 
-    def connect(self, node):
-        if not self.is_connected(node):
-            print(str(self.id) + " connecting to " + str(node.id))
-            self.links[node] = Link(self.env, self, node)
-            if not node.is_connected(self):
-                node.connect(self)
+    def receive_clock_broadcast(self, time):
+        self.get_message(time)
 
-        return self.links[node]
+    def get_message(self, time):
+        if self.is_dropped:
+            if len(self.messages[time]) > 0:
+                ops = []
+                for m in self.messages[time]:
+                    # print("*********** " + str(m) + " ****************")
+                    ops.append(m)
+                ops = sorted(ops)
+                for o in ops:
+                    self.add_to_message_queue(o)
 
-    def disconnect(self, node):
-        if self.is_connected(node):
-            print(self.id + " disconnecting from " + node.id)
-            del self.connections[other]
-            if node.is_connected(self):
-                node.disconnect(self)
-            for d in self.disconnecter:
-                d(self, node)
+        elif len(self.messages[time]) > 1:
+            print("conflict resolution time")
+            self.conflict_resolution(time)
+        elif len(self.messages[time]) == 1:
+            m = self.messages[time][0]
+            self.handle_message(m, time)
+        else:
+            # print "never getting in here"
+            pass
 
-    def is_connected(self, node):
-        return node in self.links
+    def disconnect(self, disruption):
+        self.is_dropped = True
+        self.reactivation_time = disruption.end_time
+
+    def reactivate(self,timestamp):
+        self.is_dropped = False
+        self.handle_message_backlog(timestamp)
+
+    def send(self,msg):
+        if self.is_dropped:
+            # print("putting this message into the pending queue: " + str(msg))
+            self.pending_messages.put(msg)
+            self.bloom_pending_messages.put(msg)
+        else:
+            self.clock.increment()
+            msg.clock = self.clock
+            self.bloom_clock.send_event(msg)
+            msg.bloom_clock = self.bloom_clock
+            msg.receiver.receive(msg)
+            self.add_to_opset(msg)
 
     def receive(self, msg):
-        assert isinstance(msg, Message)
-        for s in self.properties:
-            assert isinstance(s, Service)
-            s.handle_message(self, msg)
+        # print "RECEIVING TO BE CONSUMED AT:  " + str(msg.time_sent) + " + " + str(delay)
+        self.add_to_messages(msg, msg.receive_time)
 
-    def send(self,node,msg):
-        assert msg.sender == self
-        self.links[node].send(msg)
+    def add_to_messages(self, msg, index):
+        # print index
+        # print self.id + " adding message from " + msg.sender.id
+        self.messages[index].append(msg)
 
-    def broadcast(self, msg):
-        for l in self.links:
-            self.send(l, msg)
+    def add_to_message_queue(self, msg):
+        self.message_queue.put(msg)
 
-    def run(self):
-        while True:
-            msg = yield self.messages.get()
-            self.receive(msg)
+    def handle_message(self, msg, time):
+        self.add_to_opset(msg)
+        i = self.messages[time].index(msg)
+        self.messages[time][i] = None
+        self.incrementer()
+        self.clock.increment()
+        self.bloom_clock = self.bloom_clock.receive_event(msg.bloom_clock)
+        self.clock = self.clock.merge(msg.sender.clock)
+        print(self.id + " receiving message from " + msg.sender.id)
+
+
+    def handle_message_backlog(self,timestamp):
+        # print(list(self.message_queue.queue))
+        for m in list(self.message_queue.queue):
+            msg = self.message_queue.get()
+            self.bloom_clock = self.bloom_clock.receive_event(msg.sender.bloom_clock)
+            self.incrementer()
+            self.clock.increment()
+            self.clock = self.clock.merge(m.sender.clock)
+
+        for m in list(self.pending_messages.queue):
+            # print("======>")
+            # print(m)
+            m.readjust(timestamp)
+            # print("readjusting ===>")
+            # print(m)
+            self.pending_messages.get()
+            self.send(m)
+            self.bloom_clock.send_event(m)
+            m.bloom_clock = self.bloom_clock
+
+    def conflict_resolution(self,time):
+        print("resolving conflicts....")
+        ops = []
+        c = []
+        for m in self.messages[time]:
+            c.append(m)
+            ops.append(m)
+
+        bloom_ops = []
+        for m in c:
+            temp = copy.copy(m)
+            temp.type = "bloom"
+            self.bloom_clock = self.bloom_clock.receive_event(m.sender.bloom_clock)
+            temp.bloom_clock = self.bloom_clock
+            bloom_ops.append(temp)
+
+        ops = sorted(ops)
+        bloom_ops = sorted(bloom_ops)
+
+        bloom_ops.reverse()
+        confl = Conflict(ops)
+        bloom_confl = Conflict(bloom_ops)
+        self.stats.record_conflict(confl)
+        self.bloom_stats.record_conflict(bloom_confl)
+
+        for o in ops:
+            self.add_to_opset(o)
+            self.handle_message(o,time)
+
+        print(ops)
+        print("~~~~~~~~~~~~")
+        print(bloom_ops)
+        # for l in self.operations.get_payload():
+        #     print(l)
+
+    def add_to_opset(self,op):
+        self.operations.add(op)
+
+

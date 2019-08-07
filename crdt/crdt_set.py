@@ -56,7 +56,7 @@ class StateCRDT(object):
     #
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__, self.value)
+        return "<%s %s>" % (self.__class__, self.values)
 
     def clone(self):
         """Create a copy of this CRDT instance"""

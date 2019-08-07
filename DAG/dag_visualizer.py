@@ -1,6 +1,6 @@
 import pydot
-from merkle_dag import Node,DAG
-from IPython.display import Image, display
+from DAG.merkle_dag import Node,DAG
+from IPython.display import Image
 from orderedset import OrderedSet
 
 class graph_drawer:

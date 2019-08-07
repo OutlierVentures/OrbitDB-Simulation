@@ -1,7 +1,7 @@
 import unittest
 import json
-from gset import GSet
-from crdt_set import StateCRDT
+from crdt.gset import GSet
+from crdt.crdt_set import StateCRDT
 
 class TestGSetMethods(unittest.TestCase):
 

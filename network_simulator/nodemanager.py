@@ -42,7 +42,7 @@ class NodeManager(Service):
     def __init__(self, node):
         self.node = node
         self.last_seen = dict() # peer -> timestamp
-        self.env.process(self.run())
+        #self.env.process(self.run())
         self.active_nodes = set()
         self.inactive_nodes = set()
 
@@ -57,9 +57,9 @@ class NodeManager(Service):
     def __repr__(self):
         return "NodeManager(%s)" % self.node.id
 
-    @property
-    def env(self):
-        return self.node.env
+    # @property
+    # def env(self):
+    #     return self.node.env
 
     def handle_message(self, node, msg):
         print msg

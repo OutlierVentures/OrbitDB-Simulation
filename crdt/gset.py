@@ -1,4 +1,4 @@
-from crdt_set import StateCRDT, random_client_id, OperationTuple3
+from crdt.crdt_set import StateCRDT, random_client_id, OperationTuple3
 from copy import deepcopy
 from collections import MutableSet
 from time import time
@@ -8,13 +8,13 @@ import uuid
 class SetStateCRDT(StateCRDT, MutableSet):
 
     def __contains__(self, element):
-        return self.value.__contains__(element)
+        return self.values.__contains__(element)
 
     def __iter__(self):
         return self.values.__iter__()
 
     def __len__(self):
-        return self.value.__len__()
+        return self.values.__len__()
 
 
 class GSet(SetStateCRDT):
@@ -45,6 +45,7 @@ class GSet(SetStateCRDT):
 
     def set_payload(self, payload):
         self._payload = set(payload)
+
 
     payload = property(get_payload, set_payload)
 

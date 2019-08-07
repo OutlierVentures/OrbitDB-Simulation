@@ -1,5 +1,6 @@
 import unittest
-from merkle_dag import Node,DAG,hash
+from DAG.merkle_dag import Node,DAG
+
 
 class TestDAGMethods(unittest.TestCase):
     #
