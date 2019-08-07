@@ -5,9 +5,15 @@ import copy
 class BloomClock:
 
     def __init__(self,time_iterations,false_positive,filter=None):
-        self.filter = BloomFilter(time_iterations*10,false_positive)
+        self.size = 20
+        self.hash_count = 3
+        self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
-            self.set_filter(filter)
+            if isinstance(filter,BloomFilter):
+                self.set_filter(filter)
+            else:
+                self.filter = BloomFilter(self.size,self.hash_count)
+                self.filter.bit_array = filter
         self.time_iterations = time_iterations
         self.false_positive = false_positive
 
@@ -15,15 +21,22 @@ class BloomClock:
         self.filter.add(str(item))
 
     def receive_event(self,item):
-        print(type(item))
-        clock = self.merge_clocks(item)
+        # print(type(item))
+        assert isinstance(item,BloomClock)
+        assert item is not self
+        clock = self.merge_clocks(self,item)
         return clock
 
-    def get_filter(self):
-        return self.filter.bit_array
+    def get_clock(self):
+        return BloomClock(self.size,self.hash_count,self.filter)
 
-    def set_filter(self,array):
-        self.filter.bit_array = array
+    def get_filter(self):
+        x = self.filter.get()
+        return x
+
+    def set_filter(self,filter):
+        assert isinstance(filter,BloomFilter)
+        self.filter = filter
 
     def compare(self, b):
         assert isinstance(b,BloomClock)
@@ -35,10 +48,14 @@ class BloomClock:
         other = b.get_filter()
 
         for i in range(len(filter)):
+            #print("iterating filter")
             if filter[i] < other[i]:
                 secondBigger += other[i] - filter[i]
             elif filter[i] > other[i]:
                 firstBigger += filter[i] - other[i]
+
+        if filter == other:
+            print("identical")
 
         if firstBigger != 0 and secondBigger != 0:
             return False, firstBigger, secondBigger
@@ -49,10 +66,12 @@ class BloomClock:
         comparable, firstBigger, secondBigger = self.compare(b)
 
         if not comparable:
+            print("not comparable")
             return 1, "clocks not comparable"
 
         if firstBigger > secondBigger:
-            return True, 1, "first bigger"
+            print("first bigger")
+            return 1, "first bigger"
 
         return self.fp_rate(b), None
 
@@ -63,7 +82,8 @@ class BloomClock:
             return 1, "clocks not comparable"
 
         if firstBigger < secondBigger:
-            return True, 1, "second bigger"
+            print("second bigger")
+            return 1, "second bigger"
 
         return self.fp_rate(b), None
 
@@ -80,21 +100,22 @@ class BloomClock:
 
         return math.pow(1 - math.pow(1 - 0.5, sumB), sumA)
 
-    def merge_clocks(self, b):
+    @staticmethod
+    def merge_clocks(a, b):
+        assert isinstance(a,BloomClock)
+        assert isinstance(b,BloomClock)
+
         new_filter = []
 
-        filter = self.get_filter()
-        other_filter = b.get_filter()
-        for i in range(len(filter)):
-            if filter[i] <= other_filter[i]:
-                new_filter.append(other_filter[i])
-            elif filter[i] > other_filter[i]:
-                new_filter.append(filter[i])
+        _filter = a.get_filter()
+        _other = b.get_filter()
+        for i in range(len(_filter)):
+            if _filter[i] <= _other[i]:
+                new_filter.append(_other[i])
+            elif _filter[i] > _other[i]:
+                new_filter.append(_filter[i])
 
-        clock = copy.copy(self)
-        clock.set_filter(new_filter)
-
-        return clock
+        return BloomClock(a.size,a.hash_count,new_filter)
 
     def __repr(self):
         return self.get_filter()

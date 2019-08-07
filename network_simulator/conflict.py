@@ -3,7 +3,7 @@ from network_simulator.message import Message
 
 class Conflict:
 
-    def __init__(self, messages):
+    def __init__(self, messages,type=None):
         assert isinstance(messages, Iterable)
         for m in messages:
             assert isinstance(m, Message)
@@ -11,6 +11,8 @@ class Conflict:
         self.messages = messages
         self.len = len(self.messages)
         self.comparisons = 1 if self.len == 2 else (self.len*(self.len - 1))/2
+        self.type = type
+
         print(self.len)
         print(self.comparisons)
 
@@ -25,15 +27,26 @@ class Conflict:
             self.find_incorrect_classifications()
 
     def all_events_classified_concurrent(self):
-        for m in self.messages:
-            for l in self.messages:
-                if m is l:
-                    continue
-                else:
-                    if m.clock.time == l.clock.time:
+        if self.type == "bloom":
+            for m in self.messages:
+                for l in self.messages:
+                    if m is l:
+                        continue
+                    elif m.bloom_clock.happened_before(l.bloom_clock)[0] == 1 or m.bloom_clock.happened_after(l.bloom_clock)[0] == 1:
                         continue
                     else:
                         return False
+
+        else:
+            for m in self.messages:
+                for l in self.messages:
+                    if m is l:
+                        continue
+                    else:
+                        if m.clock.time == l.clock.time:
+                            continue
+                        else:
+                            return False
 
         print("all events are seemingly concurrent")
         return True
@@ -47,6 +60,7 @@ class Conflict:
                     if m.time_sent == l.time_sent:
                         continue
                     else:
+                        print("none concurrent events")
                         return False
 
         return True

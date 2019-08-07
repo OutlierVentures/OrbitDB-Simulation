@@ -48,27 +48,29 @@ class Message(object):
     def __lt__(self,other):
 
         if self.type is "bloom":
-            if self.bloom_clock.happened_before(other.bloom_clock)[0]:
+            if self.bloom_clock.happened_before(other.bloom_clock)[0] != 1:
                 print("bloom filter returns true")
+                print(self.sender.id, " before ",other.sender.id)
                 return True
 
-            if self.bloom_clock.happened_after(other.bloom_clock)[0]:
+            elif self.bloom_clock.happened_after(other.bloom_clock)[0] != 1:
                 print("bloom filter returns false")
                 return False
 
-            if self.happened_before(other.bloom_clock)[0] == 1 or self.happened_after(other.bloom_clock)[0] == 1:
+            else:
                 print("bloom filter returns order based on id")
                 return True if self.clock.id < other.clock.id else False
 
-        dist = self.clock.time - other.clock.time
+        else:
+            dist = self.clock.time - other.clock.time
 
-        if dist < 0:
-            print("lamport returning true")
+            if dist < 0:
+                print("lamport returning true")
 
-        if dist is 0 and self.id is not other.clock.id:
-                return True if self.clock.id < other.clock.id else False
+            if dist is 0 and self.id is not other.clock.id:
+                    return True if self.clock.id < other.clock.id else False
 
-        return True if dist < 0  else False
+            return True if dist < 0  else False
 
     # def __deepcopy__(self, memodict={}):
     #     cpyobj = type(self)()  # shallow copy of whole object

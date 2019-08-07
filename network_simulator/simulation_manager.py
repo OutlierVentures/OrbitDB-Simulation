@@ -88,6 +88,18 @@ class SimulationManager:
         #for i in range(self.current_time,self.time_limit * 20):
         while self.message_count < self.messages_generated:
             print("running Simulation iteration %d" % self.current_time)
+
+            if self.current_time == 450:
+                for n in self.G.nodes:
+                    for o in self.G.nodes:
+                        if o is n:
+                            continue
+                        elif o.bloom_clock.get_filter() == n.bloom_clock.get_filter():
+                            print("SAME")
+                        else:
+                            print("DIFFERENT")
+
+
             self.reactivate_nodes()
             self.send_message(self.get_next_message())
             self.receive_messages()
@@ -403,13 +415,13 @@ if __name__ == '__main__':
     peers.append(managed_peer('PeerServer_two', limit))
     # peers.append(managed_peer('PeerServer_three', limit))
 
-    spokes = create_peers(30,limit)
+    spokes = create_peers(6,limit)
 
     env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit)
     env.setup()
     env.run_simulation()
 
-    stats.get_results()
+    #stats.get_results()
     print("***********================***********")
     bloom_stats.get_results()
 

@@ -33,7 +33,7 @@ class Node(object):
         self.bloom_stats = None
 
         self.clock = LamportClock()
-        self.bloom_clock = BloomClock(length,0.1)
+        self.bloom_clock = BloomClock(length,3)
         self.operations = GSet()
 
         # env.process(self.run())
@@ -81,8 +81,8 @@ class Node(object):
         else:
             self.clock.increment()
             msg.clock = self.clock
-            self.bloom_clock.send_event(msg)
-            msg.bloom_clock = self.bloom_clock
+            self.bloom_clock.send_event(id(msg))
+            msg.bloom_clock = self.bloom_clock.get_clock()
             msg.receiver.receive(msg)
             self.add_to_opset(msg)
 
@@ -113,7 +113,7 @@ class Node(object):
         # print(list(self.message_queue.queue))
         for m in list(self.message_queue.queue):
             msg = self.message_queue.get()
-            self.bloom_clock = self.bloom_clock.receive_event(msg.sender.bloom_clock)
+            self.bloom_clock = self.bloom_clock.receive_event(msg.bloom_clock)
             self.incrementer()
             self.clock.increment()
             self.clock = self.clock.merge(m.sender.clock)
@@ -126,8 +126,6 @@ class Node(object):
             # print(m)
             self.pending_messages.get()
             self.send(m)
-            self.bloom_clock.send_event(m)
-            m.bloom_clock = self.bloom_clock
 
     def conflict_resolution(self,time):
         print("resolving conflicts....")
@@ -139,26 +137,32 @@ class Node(object):
 
         bloom_ops = []
         for m in c:
+            for n in c:
+                if n is m:
+                    continue
+                if n.bloom_clock.get_filter() == m.bloom_clock.get_filter():
+                    print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$SOMETHING REALLY BAD")
+            print(m)
             temp = copy.copy(m)
             temp.type = "bloom"
-            self.bloom_clock = self.bloom_clock.receive_event(m.sender.bloom_clock)
-            temp.bloom_clock = self.bloom_clock
+            print("printing a clock.....",temp.sender.id)
+            print(temp.bloom_clock.get_filter())
             bloom_ops.append(temp)
 
         ops = sorted(ops)
         bloom_ops = sorted(bloom_ops)
 
-        bloom_ops.reverse()
-        confl = Conflict(ops)
-        bloom_confl = Conflict(bloom_ops)
-        self.stats.record_conflict(confl)
+        # confl = Conflict(ops)
+        bloom_confl = Conflict(bloom_ops,"bloom")
+        # self.stats.record_conflict(confl)
         self.bloom_stats.record_conflict(bloom_confl)
 
         for o in ops:
             self.add_to_opset(o)
             self.handle_message(o,time)
 
-        print(ops)
+
+        # print(ops)
         print("~~~~~~~~~~~~")
         print(bloom_ops)
         # for l in self.operations.get_payload():
@@ -166,5 +170,26 @@ class Node(object):
 
     def add_to_opset(self,op):
         self.operations.add(op)
+
+# if __name__ == '__main__':
+#     class Raj:
+#         def __init__(self, a, b):
+#             self.a = a
+#             self.b = b
+#
+#
+#     bolter = Raj(2, 1)
+#     import copy
+#
+#     harry = copy.copy(bolter)
+#     harry.a = 1
+#     print(bolter.a)
+#
+#
+#     class a:
+#         def __init(self,type):
+#             self.type =
+#             pass]
+
 
 
