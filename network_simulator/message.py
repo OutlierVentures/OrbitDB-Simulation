@@ -1,3 +1,4 @@
+from bloom_clock.bloom_clock import BloomClock
 from bloom_clock.bloom_clock_operations import *
 
 temp = 0
@@ -17,7 +18,6 @@ class Message(object):
         global temp
         self.temp = temp
         temp += 1
-
         self.type = None
         
     @property
@@ -39,8 +39,12 @@ class Message(object):
 
     def add_clock(self,clock,bloom=None):
         self.clock = clock
-        self.bloom_clock = bloom
-        self.id = (self.clock.time,self.sender.id)
+        self.id = (self.clock.id,self.sender.id)
+
+    def set_clock(self,clock):
+        self.clock = clock
+        self.id = (self.clock.id,self.sender.id)
+        self.type = clock.type
 
     # def __eq__(self,other):
     #     return True if self.clock.time == other.clock.time and self.clock.id == other.clock.id else False
@@ -48,18 +52,21 @@ class Message(object):
     def __lt__(self,other):
 
         if self.type is "bloom":
-            if self.bloom_clock.happened_before(other.bloom_clock)[0] != 1:
+            assert isinstance(self.clock,BloomClock)
+            assert isinstance(other.clock,BloomClock)
+
+            if self.clock.happened_before(other.clock)[0] != 1:
                 print("bloom filter returns true")
                 print(self.sender.id, " before ",other.sender.id)
                 return True
 
-            elif self.bloom_clock.happened_after(other.bloom_clock)[0] != 1:
+            elif self.clock.happened_after(other.clock)[0] != 1:
                 print("bloom filter returns false")
                 return False
 
             else:
                 print("bloom filter returns order based on id")
-                return True if self.clock.id < other.clock.id else False
+                return True if self.id < other.id else False
 
         else:
             dist = self.clock.time - other.clock.time

@@ -1,9 +1,9 @@
+import copy
+import pickle
+
 import networkx as nx
 import matplotlib.pyplot as plt
 from network_simulator.node import Node
-#from nodemanager import Node
-# from nodemanager import PingHandler
-# from nodemanager import PeerRequestHandler
 import random
 import progressbar
 from time import sleep
@@ -12,36 +12,39 @@ from network_simulator.disruption import Disruption
 from network_simulator.simulation_analyser import SimulationAnalyser
 
 
+
 class SimulationManager:
 
-    def __init__(self,hubs,spokes,analyser,bloom_analyser,size=None,time_limit=None):
+    def __init__(self,hubs,spokes,analyser,bloom_analyser,size=None,time_limit=None,drop_prob=None):
+
         #assert isinstance(hubs,Iterable)
         #assert isinstance(spokes,Iterable)
         self.hubs = hubs
         self.spokes = spokes
 
         self.G = nx.DiGraph()
-        self.active_nodes = set()
-        self.dropped_nodes = set()
+        self._startingGraph = None
+        self._activeNodes = set()
+        self._droppedNodes = set()
+
         self.size = size
-        self.time_limit = time_limit
+        self.timeLimit = time_limit
+        self.dropProb = drop_prob if drop_prob is not None else 7
         self.current_time = 0
 
         self.messages = []
-        self.messages_generated = 0
-        self.message_count = 0
+        self._messagesGenerated = 0
+        self._messageCount = 0
 
         self.stats = analyser
-        self.bloom_stats = bloom_analyser
 
         self.disruptions = []
-
-        def new_message():
-            self.message_count+=1
-
-        self.incrementer = new_message
+        self.incrementer = self.new_message
 
 #        self.messages = [[]]*self.time_limit
+
+    def new_message(self):
+        self._messageCount += 1
 
     def add_nodes(self,nodes):
         for n in nodes:
@@ -56,10 +59,8 @@ class SimulationManager:
         print("connecting network...")
         self.connect_hubs()
         self.connect_spokes()
-        self.messages_generated = self.create_dropout_list()
-        #self.create_dropout_list()
-        self.active_nodes = set(self.G.nodes())
-        print(self.messages)
+        self._messagesGenerated = self.create_dropout_list()
+        self._activeNodes = set(self.G.nodes())
 
     def get_graph(self):
         return self.G
@@ -67,8 +68,6 @@ class SimulationManager:
     def stat_generator(self):
         for n in self.G.nodes():
             n.stats = self.stats
-            n.bloom_stats = self.bloom_stats
-
 
     def get_incrementer(self):
         return self.incrementer
@@ -87,7 +86,7 @@ class SimulationManager:
         print("beginning simulation...")
         #for i in range(self.current_time,self.time_limit * 20):
 
-        while self.message_count < self.messages_generated:
+        while self._messageCount < self._messagesGenerated:
             print("running Simulation iteration %d" % self.current_time)
 
             self.reactivate_nodes()
@@ -97,7 +96,7 @@ class SimulationManager:
             self.tick()
             #self.draw_network()
 
-        print(str(self.message_count) + " = " + str(self.messages_generated))
+        print(str(self._messageCount) + " = " + str(self._messagesGenerated))
 
         # for n in self.G.nodes():
         #     print "-----"
@@ -108,23 +107,17 @@ class SimulationManager:
 
     def reactivate_nodes(self):
         temp = set()
-        for n in self.dropped_nodes:
+        for n in self._droppedNodes:
             if self.current_time == n.reactivation_time:
                 # print(n.id + " reconnected")
                 n.reactivate(self.current_time)
-                self.active_nodes.add(n)
+                self._activeNodes.add(n)
                 temp.add(n)
 
         for t in temp:
-            self.dropped_nodes.remove(t)
-
-        # print("****")
-        # print(self.active_nodes)
-        # print(self.dropped_nodes)
-
+            self._droppedNodes.remove(t)
 
     def receive_messages(self):
-        #print "broadcasting current clock --> " + str(self.current_time)
         self.broadcast_clock()
 
     def get_latency(self,n,m):
@@ -165,12 +158,9 @@ class SimulationManager:
         assert disruption.node in self.G.nodes()
 
         n = disruption.node
-        # print(n.id + " dropped from network")
         n.disconnect(disruption)
-        # print(self.dropped_nodes)
-        # print(self.active_nodes)
-        self.active_nodes.remove(n)
-        self.dropped_nodes.add(n)
+        self._activeNodes.remove(n)
+        self._droppedNodes.add(n)
 
     def broadcast_clock(self):
         for n in self.G.nodes():
@@ -178,88 +168,31 @@ class SimulationManager:
 
     def get_next_message(self):
         if self.current_time >= len(self.messages):
-            # if len(self.messages[self.current_time]) is not 0:
-            #     print "THIS SHOULD NOT BE HAPPENING"
             pass
         else:
-            # print("SENDING MESSAGE -> " + str(self.current_time))
-            # print(self.messages[self.current_time])
             return self.messages[self.current_time]
 
-    def create_message_list(self):
-        bar = progressbar.ProgressBar(maxval=self.time_limit, \
-            widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        bar.start()
-
-        print("creating message list...")
-
-        counter = 0
-
-        for i in range(self.time_limit):
-            nodes = list(self.G.nodes())
-            #print nodes
-            # I need to add in the capability that zero messages may be sent at
-            # a given simulation iteration
-            sender = random.choice(nodes)
-            #print "Sender for time period " + str(i) + ": " + str(sender.id)
-            # maybe this isn't a particularly efficient way of doing it
-            #nodes = list(self.G.nodes())
-            nodes.remove(sender)
-            number_of_receivers = random.randint(0,len(self.G)-1)
-            if number_of_receivers is 0:
-                bar.update(i+1)
-                sleep(0.1)
-                self.messages.append(None)
-                continue
-            receivers = set()
-            counter += number_of_receivers
-
-            #print "Recievers will be of count: " + str(number_of_receivers) + ": "
-            messages = []
-            while number_of_receivers > 0:
-                n = random.choice(nodes)
-                #print str(n.id)
-                index = nodes.index(n)
-                del nodes[index]
-                #print nodes
-                number_of_receivers -= 1
-                m = Message(sender,n,i)
-                messages.append(m)
-
-            self.messages.append(messages)
-
-            bar.update(i+1)
-            sleep(0.1)
-
-        print(self.messages)
-        bar.finish()
-
-        return counter
-
     def create_dropout_list(self):
-        bar = progressbar.ProgressBar(maxval=self.time_limit, \
-            widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+        bar = progressbar.ProgressBar(maxval=self.timeLimit, \
+                                      widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
         bar.start()
 
         print("creating dropout list...")
-        #self.disruptions.append(None)
         counter = 0
 
         current_dropouts = set()
-        reconnections = [[] for i in range(self.time_limit*2)]
+        reconnections = [[] for i in range(self.timeLimit * 2)]
 
-        for i in range(self.time_limit):
+        for i in range(self.timeLimit):
             if reconnections[i]:
                 for n in reconnections[i]:
-                    #print "reconnecting a node"
                     current_dropouts.remove(n)
 
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
             drop_prob = random.randint(0,10)
             if drop_prob > 8 and nodes:
-                reconnect_time = i + random.randint(1,int(self.time_limit/10))
-                #reconnect_time = random.randint(i+1,self.time_limit)
+                reconnect_time = i + random.randint(1, int(self.timeLimit / 10))
                 n = random.choice(nodes)
                 current_dropouts.add(n)
                 index = nodes.index(n)
@@ -270,14 +203,13 @@ class SimulationManager:
             else:
                 self.disruptions.append(None)
 
-            #print(nodes)
             # I need to add in the capability that zero messages may be sent at
             # a given simulation iteration
             if not nodes:
                 bar.update(i + 1)
                 sleep(0.1)
                 self.messages.append(None)
-                self.time_limit += 1
+                self.timeLimit += 1
                 continue
 
             sender = random.choice(nodes)
@@ -377,41 +309,8 @@ class SimulationManager:
         plt.axis('off')
         plt.show()
 
-if __name__ == '__main__':
-
-    def managed_peer(name,limit):
-        p = Node(name,limit)
-        # p.properties.append(p)
-        # p.properties.append(PeerRequestHandler())
-        # p.properties.append(PingHandler())
-
-        return p
-
-    def create_peers(num,env):
-        peers = []
-        for i in range(num):
-            p = managed_peer('P%d' % i, env)
-            peers.append(p)
-
-        return peers
-
-    limit = 2000
-
-    stats = SimulationAnalyser()
-    bloom_stats = SimulationAnalyser()
-
-    peers = []
-    peers.append(managed_peer('PeerServer_one', limit))
-    peers.append(managed_peer('PeerServer_two', limit))
-    # peers.append(managed_peer('PeerServer_three', limit))
-
-    spokes = create_peers(3,limit)
-
-    env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit)
-    env.setup()
-    env.run_simulation()
-
-    #stats.get_results()
-    print("***********================***********")
-    bloom_stats.get_results()
+    def change_clock(self,type,stats):
+        for n in self.G.nodes():
+            n.change_type(type)
+            n.stats = stats
 

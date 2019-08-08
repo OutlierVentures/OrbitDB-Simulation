@@ -1,11 +1,26 @@
+import random
+
 from bloom_clock.bloom_filter import BloomFilter
 import math
 import copy
 
-class BloomClock:
+from network_simulator.clock import Clock
 
-    def __init__(self,time_iterations,false_positive,filter=None):
-        self.size = 40
+IDList = []
+for i in range(0,1000000):
+    IDList.append(i)
+
+def key_generator():
+    global IDList
+    x = random.choice(IDList)
+    IDList.pop(IDList.index(x))
+    return x
+
+
+class BloomClock(Clock):
+
+    def __init__(self,time_iterations,filter=None,id=None):
+        self.size = 20
         self.hash_count = 3
         self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
@@ -15,7 +30,10 @@ class BloomClock:
                 self.filter = BloomFilter(self.size,self.hash_count)
                 self.filter.bit_array = filter
         self.time_iterations = time_iterations
-        self.false_positive = false_positive
+        self.type = "bloom"
+
+        self.id = key_generator() if id is None else id
+        assert self.id is not None
 
     def send_event(self,item):
         self.filter.add(str(item))
@@ -28,7 +46,7 @@ class BloomClock:
         return clock
 
     def get_clock(self):
-        return BloomClock(self.size,self.hash_count,self.filter)
+        return BloomClock(self.size,self.filter,self.id)
 
     def get_filter(self):
         x = self.filter.get()
@@ -115,7 +133,7 @@ class BloomClock:
             elif _filter[i] > _other[i]:
                 new_filter.append(_filter[i])
 
-        return BloomClock(a.size,a.hash_count,new_filter)
+        return BloomClock(a.size,new_filter,max(a.id,b.id))
 
     def __repr(self):
         return self.get_filter()

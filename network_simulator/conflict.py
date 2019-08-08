@@ -32,7 +32,7 @@ class Conflict:
                 for l in self.messages:
                     if m is l:
                         continue
-                    elif m.bloom_clock.happened_before(l.bloom_clock)[0] == 1 or m.bloom_clock.happened_after(l.bloom_clock)[0] == 1:
+                    elif m.clock.happened_before(l.clock)[0] == 1 or m.clock.happened_after(l.clock)[0] == 1:
                         continue
                     else:
                         return False
