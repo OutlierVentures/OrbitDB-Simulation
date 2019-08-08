@@ -1,3 +1,5 @@
  __pycache__/*
 *.pyc
 *.png
+*.idea
+network_simulator_experimental/*

@@ -133,7 +133,7 @@ class Node(object):
         c = []
         for m in self.messages[time]:
             c.append(m)
-            ops.append(m)
+        #     ops.append(m)
 
         bloom_ops = []
         for m in c:
@@ -143,11 +143,11 @@ class Node(object):
                 if n.bloom_clock.get_filter() == m.bloom_clock.get_filter():
                     print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$SOMETHING REALLY BAD")
             print(m)
-            temp = copy.copy(m)
-            temp.type = "bloom"
-            print("printing a clock.....",temp.sender.id)
-            print(temp.bloom_clock.get_filter())
-            bloom_ops.append(temp)
+            # temp = copy.copy(m)
+            m.type = "bloom"
+            print("printing a clock.....",m.sender.id)
+            print(m.bloom_clock.get_filter())
+            bloom_ops.append(m)
 
         ops = sorted(ops)
         bloom_ops = sorted(bloom_ops)
@@ -157,7 +157,7 @@ class Node(object):
         # self.stats.record_conflict(confl)
         self.bloom_stats.record_conflict(bloom_confl)
 
-        for o in ops:
+        for o in bloom_ops:
             self.add_to_opset(o)
             self.handle_message(o,time)
 

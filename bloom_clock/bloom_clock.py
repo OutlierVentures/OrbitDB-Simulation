@@ -5,7 +5,7 @@ import copy
 class BloomClock:
 
     def __init__(self,time_iterations,false_positive,filter=None):
-        self.size = 20
+        self.size = 40
         self.hash_count = 3
         self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
