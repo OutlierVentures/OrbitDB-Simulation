@@ -1,5 +1,6 @@
 import copy
 import random
+import uuid
 
 from bloom_clock.bloom_clock import BloomClock
 from network_simulator.clock import LamportClock
@@ -16,7 +17,8 @@ class Node(object):
 
     def __init__(self, id, length):
 
-        self.id = id
+        self.name = id
+        self.id = uuid.uuid4()
         self.messages = [[] for i in range(length * 50)]
         self.bloom_messages = [[] for i in range(length * 50)]
         self.up = random.randint(1, 10)
@@ -36,7 +38,7 @@ class Node(object):
         # env.process(self.run())
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self.id)
+        return '<%s %s>' % (self.__class__.__name__, self.name)
 
     def change_type(self,type):
         if type == "bloom":
@@ -52,7 +54,7 @@ class Node(object):
                 for m in self.messages[time]:
                     # print("*********** " + str(m) + " ****************")
                     ops.append(m)
-                ops = sorted(ops)
+                #ops = sorted(ops)
                 for o in ops:
                     self.add_to_message_queue(o)
 
@@ -67,17 +69,21 @@ class Node(object):
             pass
 
     def disconnect(self, disruption):
+        assert not self.is_dropped
+
         self.is_dropped = True
         self.reactivation_time = disruption.end_time
 
     def reactivate(self,timestamp):
+        assert self.is_dropped
+        assert timestamp == self.reactivation_time
+
         self.is_dropped = False
         self.handle_message_backlog(timestamp)
 
     def send(self,msg):
         self.clock.send_event(id(msg))
         msg.set_clock(self.clock.get_clock())
-        msg.clock = self.clock.get_clock()
         if self.is_dropped:
             # print("putting this message into the pending queue: " + str(msg))
             self.pending_messages.append(msg)
@@ -103,7 +109,7 @@ class Node(object):
         self.messages[time][i] = None
         self.incrementer()
         self.clock = self.clock.receive_event(msg.clock)
-        print(self.id + " receiving message from " + msg.sender.id)
+        print(self.name + " receiving message from " + msg.sender.name, msg.temp)
 
     def handle_message_backlog(self,timestamp):
         # print(list(self.message_queue.queue))
@@ -112,31 +118,32 @@ class Node(object):
             self.clock = self.clock.receive_event(msg.clock)
             self.incrementer()
 
-
         while len(self.pending_messages):
-            # print("======>")
-            # print(m)
             m = self.pending_messages.pop(0)
             m.readjust(timestamp)
-            # print("readjusting ===>")
-            # print(m)
             m.receiver.receive(m)
 
     def conflict_resolution(self,time):
         print("resolving conflicts....")
+        c = self.messages[time]
+        random.shuffle(c)
         ops = []
-        for m in self.messages[time]:
+        for m in c:
             ops.append(m)
 
         ops = sorted(ops)
 
-        if isinstance(self.clock,LamportClock):
-            confl = Conflict(ops)
-        if isinstance(self.clock,BloomClock):
-            confl = Conflict(ops,"bloom")
+        if not all(o.sender.id == ops[0].sender.id for o in ops):
 
-        # self.stats.record_conflict(confl)
-        self.stats.record_conflict(confl)
+            if isinstance(self.clock,LamportClock):
+                confl = Conflict(ops)
+            if isinstance(self.clock,BloomClock):
+                confl = Conflict(ops,"bloom")
+
+            # self.stats.record_conflict(confl)
+            self.stats.record_conflict(confl)
+        else:
+            print("ignore")
 
         for o in ops:
             self.add_to_opset(o)

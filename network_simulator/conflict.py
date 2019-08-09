@@ -30,6 +30,7 @@ class Conflict:
         if self.type == "bloom":
             for m in self.messages:
                 for l in self.messages:
+                    print(m.clock.get_filter(),l.clock.get_filter())
                     if m is l:
                         continue
                     elif m.clock.happened_before(l.clock)[0] == 1 or m.clock.happened_after(l.clock)[0] == 1:
@@ -37,13 +38,14 @@ class Conflict:
                     else:
                         return False
 
+
         else:
             for m in self.messages:
                 for l in self.messages:
                     if m is l:
                         continue
                     else:
-                        if m.clock.time == l.clock.time:
+                        if m.clock.time == l.clock.time and m.id == l.id:
                             continue
                         else:
                             return False
@@ -52,6 +54,8 @@ class Conflict:
         return True
 
     def all_events_concurrent(self):
+
+        print(self.messages)
         for m in self.messages:
             for l in self.messages:
                 if m is l:

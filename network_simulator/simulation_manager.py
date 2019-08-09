@@ -15,7 +15,7 @@ from network_simulator.simulation_analyser import SimulationAnalyser
 
 class SimulationManager:
 
-    def __init__(self,hubs,spokes,analyser,bloom_analyser,size=None,time_limit=None,drop_prob=None):
+    def __init__(self,hubs,spokes,analyser,bloom_analyser,size=None,time_limit=None,drop_prob=None,broadcast=False):
 
         #assert isinstance(hubs,Iterable)
         #assert isinstance(spokes,Iterable)
@@ -37,6 +37,8 @@ class SimulationManager:
         self._messageCount = 0
 
         self.stats = analyser
+
+        self.broadcast = broadcast
 
         self.disruptions = []
         self.incrementer = self.new_message
@@ -109,7 +111,7 @@ class SimulationManager:
         temp = set()
         for n in self._droppedNodes:
             if self.current_time == n.reactivation_time:
-                # print(n.id + " reconnected")
+                print(n.name + " reconnected")
                 n.reactivate(self.current_time)
                 self._activeNodes.add(n)
                 temp.add(n)
@@ -181,7 +183,7 @@ class SimulationManager:
         counter = 0
 
         current_dropouts = set()
-        reconnections = [[] for i in range(self.timeLimit * 2)]
+        reconnections = [[] for i in range(self.timeLimit * 1000)]
 
         for i in range(self.timeLimit):
             if reconnections[i]:
@@ -190,9 +192,9 @@ class SimulationManager:
 
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
-            drop_prob = random.randint(0,10)
-            if drop_prob > 8 and nodes:
-                reconnect_time = i + random.randint(1, int(self.timeLimit / 10))
+            drop_prob = random.randint(0,100)
+            if drop_prob > 90 and nodes:
+                reconnect_time = random.randint(i+1, i+50)
                 n = random.choice(nodes)
                 current_dropouts.add(n)
                 index = nodes.index(n)
@@ -205,42 +207,58 @@ class SimulationManager:
 
             # I need to add in the capability that zero messages may be sent at
             # a given simulation iteration
-            if not nodes:
-                bar.update(i + 1)
-                sleep(0.1)
-                self.messages.append(None)
-                self.timeLimit += 1
-                continue
+            # if not nodes:
+            #     bar.update(i + 1)
+            #     sleep(0.1)
+            #     self.messages.append(None)
+            #     self.timeLimit += 1
+            #     continue
 
-            sender = random.choice(nodes)
+            sender = random.choice(list(self.G.nodes()))
             # print "Sender for time period " + str(i) + ": " + str(sender.id)
             # maybe this isn't a particularly efficient way of doing it
             # nodes = list(self.G.nodes())
-            number_of_receivers = random.randint(0, len(self.G) - 1 - len(current_dropouts))
-            if number_of_receivers is 0:
-                bar.update(i + 1)
-                sleep(0.1)
-                self.messages.append(None)
-                continue
-            receivers = set()
-            counter += number_of_receivers
 
-            # print "Recievers will be of count: " + str(number_of_receivers) + ": "
-            messages = []
-            nodes_temp = set(nodes)
-            nodes_temp.remove(sender)
-            active_nodes = list(nodes_temp - current_dropouts)
-            while number_of_receivers > 0:
-                n = random.choice(active_nodes)
-                # print str(n.id)
-                index = active_nodes.index(n)
-                del active_nodes[index]
-                # print nodes
-                number_of_receivers -= 1
-                m = Message(sender, n, i)
-                messages.append(m)
+            if self.broadcast:
+                messages = []
+                for n in list(set(self.G.nodes())):
+                    if n is sender:
+                        continue
+                    else:
+                        m = Message(sender,n,i)
+                        messages.append(m)
+                        counter +=1
 
-            self.messages.append(messages)
+                print(messages)
+
+                self.messages.append(messages)
+
+            else:
+                number_of_receivers = random.randint(0, len(self.G) - 1 - len(current_dropouts))
+                if number_of_receivers is 0:
+                    bar.update(i + 1)
+                    sleep(0.1)
+                    self.messages.append(None)
+                    continue
+                receivers = set()
+                counter += number_of_receivers
+
+                # print "Recievers will be of count: " + str(number_of_receivers) + ": "
+                messages = []
+                nodes_temp = set(self.G.nodes())
+                nodes_temp.remove(sender)
+                active_nodes = list(nodes_temp - current_dropouts)
+                while number_of_receivers > 0:
+                    n = random.choice(active_nodes)
+                    # print str(n.id)
+                    index = active_nodes.index(n)
+                    del active_nodes[index]
+                    # print nodes
+                    number_of_receivers -= 1
+                    m = Message(sender, n, i)
+                    messages.append(m)
+
+            #self.messages.append(messages)
 
             bar.update(i+1)
             sleep(0.1)

@@ -92,15 +92,16 @@ def save_state(simulation):
     print(type(simulation))
     pickle.dump(simulation, fileHandler)
 
-def get_state(simulation):
-    save_state(simulation)
+def get_state(simulation=None):
+    if simulation is not None:
+        save_state(simulation)
     fileHandler = open("network", "rb")
     return pickle.load(fileHandler)
 
 
 if __name__ == '__main__':
 
-    limit = 5000
+    limit = 2000
 
     stats = SimulationAnalyser()
     bloom_stats = SimulationAnalyser()
@@ -110,15 +111,15 @@ if __name__ == '__main__':
     peers.append(managed_peer('PeerServer_two', limit))
     # peers.append(managed_peer('PeerServer_three', limit))
 
-    spokes = create_peers(8,limit)
+    spokes = create_peers(5,limit)
 
-    env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit)
+    env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit,broadcast=True)
     env.setup()
-    copy = get_state(env)
-    # env.run_simulation()
+    copy = get_state()
+    env.run_simulation()
 
     copy.change_clock("bloom",bloom_stats)
     copy.run_simulation()
 
-    #stats.get_results()
+    stats.get_results()
     bloom_stats.get_results()

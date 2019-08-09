@@ -7,4 +7,4 @@ class Disruption:
         self.end_time = end_time
 
     def __repr__(self):
-        return "dropout to " + self.node.id + " from " + str(self.start_time) + " to " + str(self.end_time)
+        return "dropout to " + self.node.name + " from " + str(self.start_time) + " to " + str(self.end_time)

@@ -25,7 +25,7 @@ class Message(object):
         return self.base_size + len(repr(self.data))
 
     def __repr__(self):
-        return "message from " + self.sender.id + " sent to " + self.receiver.id + " generated at " + str(self.generated) + "sent at " + str(self.time_sent) + " with latency " + str(self.latency) + " : " + str(self.temp)
+        return "message from " + self.sender.name + " sent to " + self.receiver.name + " generated at " + str(self.generated) + "sent at " + str(self.time_sent) + " with latency " + str(self.latency) + " : " + str(self.temp)
 
     def set_latency(self,delay,is_managed=False):
         self.latency = delay
@@ -37,13 +37,13 @@ class Message(object):
         self.time_sent = timestamp
         self.receive_time = self.time_sent + self.latency
 
-    def add_clock(self,clock,bloom=None):
-        self.clock = clock
-        self.id = (self.clock.id,self.sender.id)
+    # def add_clock(self,clock,bloom=None):
+    #     self.clock = clock
+    #     self.id = self.clock.id
 
     def set_clock(self,clock):
         self.clock = clock
-        self.id = (self.clock.id,self.sender.id)
+        self.id = (self.clock.get_id(),self.sender.id)
         self.type = clock.type
 
     # def __eq__(self,other):
@@ -54,6 +54,9 @@ class Message(object):
         if self.type is "bloom":
             assert isinstance(self.clock,BloomClock)
             assert isinstance(other.clock,BloomClock)
+            assert self.clock is not other.clock
+
+            print("printing message ids: ",self.id,other.id)
 
             if self.clock.happened_before(other.clock)[0] != 1:
                 print("bloom filter returns true")
@@ -66,6 +69,7 @@ class Message(object):
 
             else:
                 print("bloom filter returns order based on id")
+                print("id: ", self.id,other.id)
                 return True if self.id < other.id else False
 
         else:
@@ -74,10 +78,13 @@ class Message(object):
             if dist < 0:
                 print("lamport returning true")
 
-            if dist is 0 and self.id is not other.clock.id:
-                    return True if self.clock.id < other.clock.id else False
+            print("trying to print some id's: ", self.id,other.id)
 
-            return True if dist < 0  else False
+            if dist is 0 and self.id is not other.clock.id:
+                print("id: ", self.id, other.id)
+                return True if self.id < other.id else False
+
+            return True if dist < 0 else False
 
     # def __deepcopy__(self, memodict={}):
     #     cpyobj = type(self)()  # shallow copy of whole object

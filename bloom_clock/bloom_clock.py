@@ -6,21 +6,21 @@ import copy
 
 from network_simulator.clock import Clock
 
-IDList = []
-for i in range(0,1000000):
-    IDList.append(i)
-
-def key_generator():
-    global IDList
-    x = random.choice(IDList)
-    IDList.pop(IDList.index(x))
-    return x
+# IDList = []
+# for i in range(0,1000000):
+#     IDList.append(i)
+#
+# def key_generator():
+#     global IDList
+#     x = random.choice(IDList)
+#     IDList.pop(IDList.index(x))
+#     return x
 
 
 class BloomClock(Clock):
 
     def __init__(self,time_iterations,filter=None,id=None):
-        self.size = 20
+        self.size = 15
         self.hash_count = 3
         self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
@@ -32,11 +32,12 @@ class BloomClock(Clock):
         self.time_iterations = time_iterations
         self.type = "bloom"
 
-        self.id = key_generator() if id is None else id
+        self.id = self.clock_sum() if id is None else id
         assert self.id is not None
 
     def send_event(self,item):
         self.filter.add(str(item))
+        self.id = self.clock_sum()
 
     def receive_event(self,item):
         # print(type(item))
@@ -72,8 +73,13 @@ class BloomClock(Clock):
             elif filter[i] > other[i]:
                 firstBigger += filter[i] - other[i]
 
-        if filter == other:
-            print("identical")
+        # if filter == other:
+        #     print("identical")
+
+        if filter is other:
+            print(self.id)
+            print(b.id)
+            print("definitely shouldn't be happening")
 
         if firstBigger != 0 and secondBigger != 0:
             return False, firstBigger, secondBigger
@@ -110,6 +116,7 @@ class BloomClock(Clock):
         sum = 0
         for i in range(len(filter)):
             sum += filter[i]
+        print("printing sum: ",sum)
         return sum
 
     def fp_rate(self, b):
@@ -133,7 +140,16 @@ class BloomClock(Clock):
             elif _filter[i] > _other[i]:
                 new_filter.append(_filter[i])
 
-        return BloomClock(a.size,new_filter,max(a.id,b.id))
+        print(a.id)
+        print(b.id)
+        id = max(a.id,b.id)
+        print("new id is: ",id)
+
+
+        return BloomClock(a.size,filter=new_filter,id=id)
+
+    def get_id(self):
+        return self.id
 
     def __repr(self):
         return self.get_filter()
