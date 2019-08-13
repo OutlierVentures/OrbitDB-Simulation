@@ -65,6 +65,7 @@
 #     Visualizer(env, peers)
 # else:
 #     env.run(until=DURATION)
+import numpy as np
 import pickle
 
 from network_simulator.node import Node
@@ -103,23 +104,52 @@ if __name__ == '__main__':
 
     limit = 2000
 
-    stats = SimulationAnalyser()
-    bloom_stats = SimulationAnalyser()
+    import matplotlib.pyplot as plt
 
-    peers = []
-    peers.append(managed_peer('PeerServer_one', limit))
-    peers.append(managed_peer('PeerServer_two', limit))
-    # peers.append(managed_peer('PeerServer_three', limit))
+    x_list = []
+    y_list = []
+    x_list_bloom = []
+    y_list_bloom = []
 
-    spokes = create_peers(5,limit)
+    for i in range(1,18):
 
-    env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit,broadcast=True)
-    env.setup()
-    copy = get_state()
-    env.run_simulation()
+        stats = SimulationAnalyser()
+        bloom_stats = SimulationAnalyser()
 
-    copy.change_clock("bloom",bloom_stats)
-    copy.run_simulation()
+        peers = []
+        peers.append(managed_peer('PeerServer_one', limit))
+        peers.append(managed_peer('PeerServer_two', limit))
+        # peers.append(managed_peer('PeerServer_three', limit))
 
-    stats.get_results()
-    bloom_stats.get_results()
+        spokes = create_peers(i,limit)
+
+        env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit,broadcast=True)
+        env.setup()
+        copy = get_state(env)
+        env.run_simulation()
+
+        copy.change_clock("bloom",bloom_stats)
+        copy.run_simulation()
+
+        x_list.append(i+2)
+        x_list_bloom.append(i+2)
+        y_list.append(int(stats.percent_correct))
+        y_list_bloom.append(int(bloom_stats.percent_correct))
+        stats.get_results()
+        bloom_stats.get_results()
+
+    print("****************")
+    print(x_list,y_list)
+    print(x_list_bloom,y_list_bloom)
+
+    x_list = np.array(x_list)
+    y_list = np.array(y_list)
+    x_list_bloom = np.array(x_list_bloom)
+    y_list_bloom = np.array(y_list_bloom)
+    plt.plot(x_list, y_list, 'xr-')
+    plt.plot(x_list_bloom,y_list_bloom,'xb-')
+    plt.axis([3, 20, 0, 100])
+    plt.xlabel("Node Count")
+    plt.ylabel("% Correct Classifications")
+    plt.show()
+

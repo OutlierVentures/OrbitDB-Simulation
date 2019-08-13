@@ -32,12 +32,12 @@ class StateCRDT(object):
         self._options = {} if options is None else options
 
 
-    @abstractproperty
+    @abstractmethod
     def values(self):
         """Returns the expected value generated from the payload"""
         pass
 
-    @abstractproperty
+    @abstractmethod
     def payload(self):
         """This is a deepcopy-able version of the CRDT's payload.
         If the CRDT is going to be serialized to storage, this is the
@@ -50,10 +50,6 @@ class StateCRDT(object):
     def merge(cls, X, Y):
         """Merge two replicas of this CRDT"""
         pass
-
-    #
-    # Built-in methods
-    #
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__, self.values)

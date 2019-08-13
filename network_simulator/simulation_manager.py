@@ -193,7 +193,7 @@ class SimulationManager:
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
             drop_prob = random.randint(0,100)
-            if drop_prob > 90 and nodes:
+            if drop_prob > 66 and nodes:
                 reconnect_time = random.randint(i+1, i+50)
                 n = random.choice(nodes)
                 current_dropouts.add(n)
