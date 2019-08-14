@@ -19,6 +19,18 @@ class GSet(StateCRDT,OrderedSet):
         assert isinstance(other,GSet)
         merged = GSet(self._payload.union(other._payload))
 
+        difference = OrderedSet()
+
+        for s in sets:
+            difference.add(self - s)
+
+        difference = sorted(list(difference))
+
+        merged = list(self) + difference
+        sorted(merged)
+
+        return merged
+
         return merged
 
     def compare(self, other):
@@ -45,19 +57,6 @@ class GSet(StateCRDT,OrderedSet):
 
     def discard(self, element):
         raise NotImplementedError("This is a grow-only set")
-
-    def union(self, *sets):
-        difference = OrderedSet()
-
-        for s in sets:
-            difference.add(self - s)
-
-        difference = sorted(list(difference))
-
-        merged = list(self) + difference
-        sorted(merged)
-
-        return merged
 
     def __contains__(self, element):
         return self.values.__contains__(element)
