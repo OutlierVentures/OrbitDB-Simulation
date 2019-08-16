@@ -21,9 +21,9 @@ class GSet(StateCRDT,OrderedSet):
         print(self._payload)
         print(other._payload)
         merged = list(self._payload.union(other._payload))
-        print("*******************      PERFORMING MERGE    ***************")
-        print(merged)
-        sorted(merged)
+        # print("*******************      PERFORMING MERGE    ***************")
+        # print(merged)
+        merged.sort()
         print("--")
         print(merged)
         return GSet(merged)
@@ -53,7 +53,7 @@ class GSet(StateCRDT,OrderedSet):
     def add(self, element):
         self._payload.add(element)
         temp = list(self._payload)
-        sorted(temp)
+        temp.sort()
         self._payload = OrderedSet(temp)
 
     def discard(self, element):

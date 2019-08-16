@@ -194,7 +194,7 @@ class SimulationManager:
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
             drop_prob = random.randint(0,100)
-            if drop_prob > 105 and nodes:
+            if drop_prob > 60 and nodes:
                 reconnect_time = random.randint(i+1, i+50)
                 n = random.choice(nodes)
                 current_dropouts.add(n)
@@ -215,7 +215,13 @@ class SimulationManager:
             #     self.timeLimit += 1
             #     continue
 
+            # if x is None:
             sender = random.choice(list(self.G.nodes()))
+                # x = sender
+            # else:
+            #     while sender is not x:
+            #         sender = random.choice(list(self.G.nodes()))
+
             # print "Sender for time period " + str(i) + ": " + str(sender.id)
             # maybe this isn't a particularly efficient way of doing it
             # nodes = list(self.G.nodes())

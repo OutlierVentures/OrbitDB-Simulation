@@ -87,10 +87,12 @@ class Message(object):
             if self.clock.happened_before(other.clock)[0] != 1:
                 # print("bloom filter returns true")
                 # print(self.sender.id, " before ",other.sender.id)
+                print(self.clock.happened_before(other.clock)[0])
                 return True
 
             elif self.clock.happened_after(other.clock)[0] != 1:
                 # print("bloom filter returns false")
+                # print(self.clock.happened_before(other.clock)[0])
                 return False
 
             else:
@@ -109,9 +111,13 @@ class Message(object):
             # print("trying to print some id's: ", self.id,other.id)
 
             if dist == 0 and self.id != other.id:
-                # print("id: ", self.id, other.id)
+                print("id: ", self.id, other.id)
                 return True if self.id < other.id else False
 
+            print(self.sender.name," ---- ",other.sender.name)
+            print(self.id," ---- ",other.id)
+            print(self.temp, " ---- ", other.temp)
+            print(dist)
             return True if dist < 0 else False
 
     # def __ne__(self, other):

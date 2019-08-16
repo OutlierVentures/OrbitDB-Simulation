@@ -84,6 +84,7 @@ class Node(object):
     def send(self,msg):
         self.clock.send_event(id(msg))
         msg.set_clock(self.clock.get_clock())
+        self.add_to_opset(msg)
         if self.is_dropped:
             # print("putting this message into the pending queue: " + str(msg))
             self.pending_messages.append(msg)
@@ -91,7 +92,6 @@ class Node(object):
             receivers = msg.get_receivers()
             for r in receivers:
                 r.receive(msg)
-            self.add_to_opset(msg)
 
     def receive(self, msg):
         # print "RECEIVING TO BE CONSUMED AT:  " + str(msg.time_sent) + " + " + str(delay)
@@ -107,12 +107,12 @@ class Node(object):
         self.message_queue.append(msg)
 
     def handle_message(self, msg, time):
-        self.add_to_opset(msg)
         i = self.messages[time].index(msg)
         self.messages[time][i] = None
         self.incrementer()
         self.clock = self.clock.receive_event(msg.clock)
         print(self.name + " receiving message from " + msg.sender.name, msg.temp)
+        self.add_to_opset(msg)
 
     def handle_message_backlog(self,timestamp):
         # print(list(self.message_queue.queue))

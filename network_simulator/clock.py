@@ -43,19 +43,18 @@ class LamportClock(Clock):
         self.increment()
 
     def receive_event(self,item=None):
-        self.increment()
         return self.merge(item)
 
     def increment(self):
         self.time += 1
 
     def merge(self,clock):
-        self.time = max(self.time, clock.time)
+        self.time = max(self.time, clock.time) + 1
         self.id = max(self.id,clock.id)
         return LamportClock(self.id, self.time)
 
     def get_clock(self):
-        return self
+        return LamportClock(self.id,self.time)
 
     def get_id(self):
         return self.time

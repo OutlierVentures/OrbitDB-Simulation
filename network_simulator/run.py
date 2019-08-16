@@ -102,7 +102,7 @@ def get_state(simulation=None):
 
 if __name__ == '__main__':
 
-    limit = 10
+    limit = 250
 
     import matplotlib.pyplot as plt
 
@@ -119,87 +119,197 @@ if __name__ == '__main__':
     peers.append(managed_peer('PeerServer_two', limit))
     # peers.append(managed_peer('PeerServer_three', limit))
 
-    spokes = create_peers(1, limit)
+    for it in range(100):
 
-    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True)
-    env.setup()
-    copy = get_state(env)
-    env.run_simulation()
+        stats = SimulationAnalyser()
+        bloom_stats = SimulationAnalyser()
 
-    copy.change_clock("bloom", bloom_stats)
-    copy.run_simulation()
+        peers = []
+        peers.append(managed_peer('PeerServer_one', limit))
+        peers.append(managed_peer('PeerServer_two', limit))
+        # peers.append(managed_peer('PeerServer_three', limit))
 
-    nodes = copy.G.nodes()
-    _nodes = env.G.nodes()
+        spokes = create_peers(it,limit)
 
-    correct = 0
-    incorrect = 0
-    total = 0
+        env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit,broadcast=True)
+        env.setup()
+        copy = get_state(env)
+        env.run_simulation()
 
-    messages = copy.messages
+        copy.change_clock("bloom",bloom_stats)
+        copy.run_simulation()
 
-    a = []
-    print("printing lamport clock opsets")
-    for n in nodes:
-        a.append(n.operations._payload)
-        print("opset for ",n.name)
-        print(n.operations._payload)
-        print(len(n.operations.get_payload()))
+        nodes = copy.G.nodes()
+        _nodes = env.G.nodes()
 
-        x = n.operations.get_payload()
-        for msg in x:
-            for g in x:
-                if x.index(g) < x.index(msg):
+        correct = 0
+        incorrect = 0
+        total = 0
+
+        messages = copy.messages
+
+        a = []
+        print("printing lamport clock opsets")
+        for n in _nodes:
+            a.append(n.operations._payload)
+            # print("opset for ", n.name)
+            # print(n.operations._payload)
+            # print(len(n.operations.get_payload()))
+
+
+        for i in range(len(a[0])):
+            for m in range(i + 1, len(a[0])):
+                if i == m:
                     continue
-                if msg is g:
-                    continue
+                # if i < 50 and j < 50:
+                #     print("comparing: ", a[j][i].time_sent,a[j][m].time_sent)
+                if a[0][i].time_sent <= a[0][m].time_sent:
+                    # print("correct")
+                    correct += 1
                 else:
-                    if msg < g:
-                        print("yes!!!")
-                    else:
-                        if g < msg:
-                            print("fine")
-                        else:
-                            print("circularity")
-                        print("no")
-                        print(msg,"**** ",g)
-    #
-    # for j in range(len(a)):
-    #     for i in range(len(a[j])):
-    #         for m in range(len(a[j])):
-    #             if i == m:
-    #                 continue
-    #             if a[j][i].time_sent <= a[j][m].time_sent:
-    #                 correct += 1
-    #             else:
-    #                 incorrect += 1
-    #             total += 1
+                    # print("incorrect")
+                    incorrect += 1
+                total += 1
 
-    # perc = ((correct)/(total))*100
+        _perc = ((correct) / (total)) * 100
+
+        b = []
+        #
+        for n in nodes:
+            b.append(n.operations._payload)
+            print("opset for ", n.name)
+            print(n.operations._payload)
+
+        correct = 0
+        incorrect = 0
+        total = 0
+
+        for i in range(len(b[0])):
+            for m in range(i, len(b[0])):
+                if i == m:
+                    continue
+                if b[0][i].time_sent <= b[0][m].time_sent:
+                    correct += 1
+                else:
+                    incorrect += 1
+                total += 1
+
+        perc = ((correct) / (total)) * 100
+
+
+        x_list.append(it+2)
+        x_list_bloom.append(it+2)
+        y_list.append(_perc)
+        y_list_bloom.append(perc)
+
+        it += 5
+
+
+    x_list = np.array(x_list)
+    y_list = np.array(y_list)
+    x_list_bloom = np.array(x_list_bloom)
+    y_list_bloom = np.array(y_list_bloom)
+    plt.plot(x_list, y_list, 'xr-')
+    plt.plot(x_list_bloom,y_list_bloom,'xb-')
+    plt.axis([3, 100, 0, 100])
+    plt.xlabel("Node Count")
+    plt.ylabel("% Correct Classifications")
+    plt.show()
+
+
+
+
+
+
+
+
+
+    # spokes = create_peers(30, limit)
+    # env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True)
+    # env.setup()
+    # copy = get_state(env)
+    # env.run_simulation()
     #
-    # print(perc,"%")
+    # copy.change_clock("bloom", bloom_stats)
+    # copy.run_simulation()
     #
-    # b = []
-    #
-    # for n in _nodes:
-    #     b.append(n.operations._payload)
-    #     print("opset for ",n.name)
-    #     print(n.operations._payload)
+    # nodes = copy.G.nodes()
+    # _nodes = env.G.nodes()
     #
     # correct = 0
     # incorrect = 0
     # total = 0
     #
-    # for j in range(len(a)):
-    #     for i in range(len(a[j])):
-    #         for m in range(len(a[j])):
-    #             if i == m:
-    #                 continue
-    #             if a[j][i].time_sent <= a[j][m].time_sent:
-    #                 correct += 1
-    #             else:
-    #                 incorrect += 1
-    #             total += 1
+    # messages = copy.messages
+    #
+    # a = []
+    # print("printing lamport clock opsets")
+    # for n in _nodes:
+    #     a.append(n.operations._payload)
+    #     print("opset for ",n.name)
+    #     print(n.operations._payload)
+    #     print(len(n.operations.get_payload()))
+    #
+    #     # x = n.operations.get_payload()
+    #     # for msg in x:
+    #     #     for g in x:
+    #     #         if x.index(g) < x.index(msg):
+    #     #             continue
+    #     #         if msg is g:
+    #     #             continue
+    #     #         else:
+    #     #             if msg < g:
+    #     #                 print("yes!!!")
+    #     #             else:
+    #     #                 if g < msg:
+    #     #                     print("fine")
+    #     #                 else:
+    #     #                     print("circularity")
+    #     #                 print("no")
+    #     #                 print(msg,"**** ",g)
+    #
+    #
+    # for i in range(len(a[0])):
+    #     for m in range(i+1,len(a[0])):
+    #         if i == m:
+    #             continue
+    #         # if i < 50 and j < 50:
+    #         #     print("comparing: ", a[j][i].time_sent,a[j][m].time_sent)
+    #         if a[0][i].time_sent <= a[0][m].time_sent:
+    #             # print("correct")
+    #             correct += 1
+    #         else:
+    #             # print("incorrect")
+    #             incorrect += 1
+    #         total += 1
+    #
+    # print(correct," + ",incorrect," = ",total)
+    #
+    # perc = ((correct)/(total))*100
+    #
+    # print(perc,"%")
+    #
+    # b = []
+    # #
+    # for n in nodes:
+    #     b.append(n.operations._payload)
+    #     print("opset for ",n.name)
+    #     print(n.operations._payload)
+    #
+    #
+    # correct = 0
+    # incorrect = 0
+    # total = 0
+    #
+    # for i in range(len(b[0])):
+    #     for m in range(i,len(b[0])):
+    #         if i == m:
+    #             continue
+    #         if b[0][i].time_sent <= b[0][m].time_sent:
+    #             correct += 1
+    #         else:
+    #             incorrect += 1
+    #         total += 1
     #
     # perc = ((correct)/(total))*100
     #

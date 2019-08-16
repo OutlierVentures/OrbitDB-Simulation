@@ -20,8 +20,8 @@ from network_simulator.clock import Clock
 class BloomClock(Clock):
 
     def __init__(self,time_iterations,filter=None,id=None):
-        self.size = 15
-        self.hash_count = 3
+        self.size = 500
+        self.hash_count = 2
         self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
             if isinstance(filter,BloomFilter):
@@ -123,7 +123,7 @@ class BloomClock(Clock):
         sumA = self.clock_sum()
         sumB = b.clock_sum()
 
-        return math.pow(1 - math.pow(1 - 0.5, sumB), sumA)
+        return math.pow(1 - math.pow(1 - (1/self.size), sumB), sumA)
 
     @staticmethod
     def merge_clocks(a, b):
@@ -150,6 +150,6 @@ class BloomClock(Clock):
     def get_id(self):
         return self.id
 
-    def __repr(self):
+    def __repr__(self):
         return self.get_filter()
 
