@@ -131,16 +131,17 @@ class SimulationManager:
         else:
             for m in msg:
                 sender = m.sender
-                receiver = m.receiver
+                receivers = m.get_receivers()
+                for r in receivers:
+                    if not self.G.has_edge(sender, r):
+                        # print "Creating connection between " + msg.sender.id + " and " + r.id
+                        self.G.add_edge(sender, r, weight=sender.up + r.down)
+                        self.G.add_edge(r, sender, weight=sender.down + r.up)
 
-                if not self.G.has_edge(sender, receiver):
-                    # print "Creating connection between " + msg.sender.id + " and " + r.id
-                    self.G.add_edge(sender, receiver, weight=sender.up + receiver.down)
-                    self.G.add_edge(receiver, sender, weight=sender.down + receiver.up)
+                    delay = self.get_latency(sender,r)
+                    m.set_latency(delay,r.name,True)
 
-                delay = self.get_latency(sender,receiver)
-                m.set_latency(delay,True)
-                sender.send(m)
+            sender.send(m)
 
     def drop_nodes(self):
         if self.current_time < len(self.disruptions):
@@ -193,7 +194,7 @@ class SimulationManager:
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
             drop_prob = random.randint(0,100)
-            if drop_prob > 66 and nodes:
+            if drop_prob > 105 and nodes:
                 reconnect_time = random.randint(i+1, i+50)
                 n = random.choice(nodes)
                 current_dropouts.add(n)
@@ -220,18 +221,16 @@ class SimulationManager:
             # nodes = list(self.G.nodes())
 
             if self.broadcast:
-                messages = []
+                receivers = {}
                 for n in list(set(self.G.nodes())):
                     if n is sender:
                         continue
                     else:
-                        m = Message(sender,n,i)
-                        messages.append(m)
+                        receivers[n.name] = n
                         counter +=1
 
-                print(messages)
-
-                self.messages.append(messages)
+                m = Message(sender,receivers,i)
+                self.messages.append([m])
 
             else:
                 number_of_receivers = random.randint(0, len(self.G) - 1 - len(current_dropouts))

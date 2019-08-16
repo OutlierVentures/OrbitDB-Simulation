@@ -47,7 +47,7 @@ class BloomClock(Clock):
         return clock
 
     def get_clock(self):
-        return BloomClock(self.size,self.filter,self.id)
+        return BloomClock(self.size,self.get_filter(),self.id)
 
     def get_filter(self):
         x = self.filter.get()
@@ -76,10 +76,10 @@ class BloomClock(Clock):
         # if filter == other:
         #     print("identical")
 
-        if filter is other:
-            print(self.id)
-            print(b.id)
-            print("definitely shouldn't be happening")
+        # if filter is other:
+            # print(self.id)
+            # print(b.id)
+            # print("definitely shouldn't be happening")
 
         if firstBigger != 0 and secondBigger != 0:
             return False, firstBigger, secondBigger
@@ -90,11 +90,11 @@ class BloomClock(Clock):
         comparable, firstBigger, secondBigger = self.compare(b)
 
         if not comparable:
-            print("not comparable")
+            # print("not comparable")
             return 1, "clocks not comparable"
 
         if firstBigger > secondBigger:
-            print("first bigger")
+            # print("first bigger")
             return 1, "first bigger"
 
         return self.fp_rate(b), None
@@ -106,7 +106,7 @@ class BloomClock(Clock):
             return 1, "clocks not comparable"
 
         if firstBigger < secondBigger:
-            print("second bigger")
+            # print("second bigger")
             return 1, "second bigger"
 
         return self.fp_rate(b), None
@@ -116,7 +116,7 @@ class BloomClock(Clock):
         sum = 0
         for i in range(len(filter)):
             sum += filter[i]
-        print("printing sum: ",sum)
+        # print("printing sum: ",sum)
         return sum
 
     def fp_rate(self, b):
@@ -143,8 +143,7 @@ class BloomClock(Clock):
         print(a.id)
         print(b.id)
         id = max(a.id,b.id)
-        print("new id is: ",id)
-
+        # print("new id is: ",id)
 
         return BloomClock(a.size,filter=new_filter,id=id)
 

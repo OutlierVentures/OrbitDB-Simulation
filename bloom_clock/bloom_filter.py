@@ -1,3 +1,4 @@
+import copy
 import math
 import mmh3
 
@@ -16,11 +17,11 @@ class BloomFilter(object):
 
         # number of hash functions to use
         self.hash_count = hash_functions
-        print("hash count is: " + str(self.hash_count))
+        # print("hash count is: " + str(self.hash_count))
 
         # Bit array of given size
         self.bit_array = [0] * self.size
-        print("size is: ",self.size)
+        # print("size is: ",self.size)
 
         # self.fp_prob
 
@@ -56,7 +57,7 @@ class BloomFilter(object):
         return True
 
     def get(self):
-        return self.bit_array
+        return copy.copy(self.bit_array)
 
     # def __iter__(self):
     #     self.x = self.bit_array[0]

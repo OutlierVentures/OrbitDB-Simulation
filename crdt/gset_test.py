@@ -52,9 +52,9 @@ class TestGSetMethods(unittest.TestCase):
         crdt = GSet()
         crdt.add(1)
         crdt.add('A')
-        crdt.add('A')
+        # crdt.add('A')
         crdt.add(1)
-        crdt.add('A')
+        # crdt.add('A')
         obj = { "hello": 'ABC' }
         crdt.add(json.dumps(obj))
         crdt.add(json.dumps(obj))
@@ -125,9 +125,6 @@ class TestGSetMethods(unittest.TestCase):
         print(crdt1._payload)
         self.assertEqual(crdt1._payload, ['A', 'B', 'AA', 'BB'])
         self.assertEqual(crdt2._payload, ['B', 'BB'])
-
-
-
 
 
 if __name__ == '__main__':

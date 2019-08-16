@@ -88,12 +88,15 @@ class Node(object):
             # print("putting this message into the pending queue: " + str(msg))
             self.pending_messages.append(msg)
         else:
-            msg.receiver.receive(msg)
+            receivers = msg.get_receivers()
+            for r in receivers:
+                r.receive(msg)
             self.add_to_opset(msg)
 
     def receive(self, msg):
         # print "RECEIVING TO BE CONSUMED AT:  " + str(msg.time_sent) + " + " + str(delay)
-        self.add_to_messages(msg, msg.receive_time)
+        print(msg.receive_times)
+        self.add_to_messages(msg, msg.receive_times[self.name])
 
     def add_to_messages(self, msg, index):
         # print index
@@ -113,15 +116,20 @@ class Node(object):
 
     def handle_message_backlog(self,timestamp):
         # print(list(self.message_queue.queue))
+        while len(self.pending_messages):
+            m = self.pending_messages.pop(0)
+            self.add_to_opset(m)
+            m.readjust(timestamp)
+            receivers = m.get_receivers()
+            for r in receivers:
+                r.receive(m)
+
         while len(self.message_queue) > 0:
             msg = self.message_queue.pop(0)
+            self.add_to_opset(msg)
             self.clock = self.clock.receive_event(msg.clock)
             self.incrementer()
 
-        while len(self.pending_messages):
-            m = self.pending_messages.pop(0)
-            m.readjust(timestamp)
-            m.receiver.receive(m)
 
     def conflict_resolution(self,time):
         print("resolving conflicts....")
@@ -146,9 +154,17 @@ class Node(object):
             print("ignore")
 
         for o in ops:
-            self.add_to_opset(o)
             self.handle_message(o,time)
 
     def add_to_opset(self,op):
-        self.operations.add(op)
+        assert isinstance(op,Message)
+        assert isinstance(op.sender.operations,GSet)
+
+        if op.sender is not self:
+            print("about to perform a merge between ",self.name,op.sender.name)
+            self.operations = self.operations.merge(op.get_log())
+            # op.sender.operations = self.operation
+        else:
+            self.operations.add(op)
+            op.add_log(self.operations)
 
