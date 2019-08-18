@@ -65,6 +65,9 @@
 #     Visualizer(env, peers)
 # else:
 #     env.run(until=DURATION)
+import multiprocessing
+import time
+
 import numpy as np
 import pickle
 
@@ -88,29 +91,19 @@ def create_peers(num, env):
         peers.append(p)
     return peers
 
-def save_state(simulation):
-    fileHandler = open("network", "wb")
+def save_state(simulation,string):
+    fileHandler = open(string, "wb")
     print(type(simulation))
     pickle.dump(simulation, fileHandler)
 
-def get_state(simulation=None):
+def get_state(simulation=None,string=""):
+    name = str(string)
     if simulation is not None:
-        save_state(simulation)
-    fileHandler = open("network", "rb")
+        save_state(simulation,name)
+    fileHandler = open(name, "rb")
     return pickle.load(fileHandler)
 
-
-if __name__ == '__main__':
-
-    limit = 250
-
-    import matplotlib.pyplot as plt
-
-    x_list = []
-    y_list = []
-    x_list_bloom = []
-    y_list_bloom = []
-
+def run_loop(it, x_list,x_list_bloom,limit):
     stats = SimulationAnalyser()
     bloom_stats = SimulationAnalyser()
 
@@ -119,102 +112,129 @@ if __name__ == '__main__':
     peers.append(managed_peer('PeerServer_two', limit))
     # peers.append(managed_peer('PeerServer_three', limit))
 
-    for it in range(100):
+    spokes = create_peers(it, limit)
 
-        stats = SimulationAnalyser()
-        bloom_stats = SimulationAnalyser()
+    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True)
+    env.setup()
+    a = str(it)
+    copy = get_state(env,string=a)
+    env.run_simulation()
 
-        peers = []
-        peers.append(managed_peer('PeerServer_one', limit))
-        peers.append(managed_peer('PeerServer_two', limit))
-        # peers.append(managed_peer('PeerServer_three', limit))
+    copy.change_clock("bloom", bloom_stats)
+    copy.run_simulation()
 
-        spokes = create_peers(it,limit)
+    nodes = copy.G.nodes()
+    _nodes = env.G.nodes()
 
-        env = SimulationManager(peers,spokes,stats,bloom_stats,time_limit=limit,broadcast=True)
-        env.setup()
-        copy = get_state(env)
-        env.run_simulation()
+    correct = 0
+    incorrect = 0
+    total = 0
 
-        copy.change_clock("bloom",bloom_stats)
-        copy.run_simulation()
+    messages = copy.messages
 
-        nodes = copy.G.nodes()
-        _nodes = env.G.nodes()
+    a = []
+    print("printing lamport clock opsets")
+    for n in _nodes:
+        a.append(n.operations._payload)
+        # print("opset for ", n.name)
+        # print(n.operations._payload)
+        # print(len(n.operations.get_payload()))
 
-        correct = 0
-        incorrect = 0
-        total = 0
+    for i in range(len(a[0])):
+        for m in range(i + 1, len(a[0])):
+            if i == m:
+                continue
+            # if i < 50 and j < 50:
+            #     print("comparing: ", a[j][i].time_sent,a[j][m].time_sent)
+            if a[0][i].time_sent <= a[0][m].time_sent:
+                # print("correct")
+                correct += 1
+            else:
+                # print("incorrect")
+                incorrect += 1
+            total += 1
 
-        messages = copy.messages
+    _perc = ((correct) / (total)) * 100
 
-        a = []
-        print("printing lamport clock opsets")
-        for n in _nodes:
-            a.append(n.operations._payload)
-            # print("opset for ", n.name)
-            # print(n.operations._payload)
-            # print(len(n.operations.get_payload()))
+    b = []
+    #
+    for n in nodes:
+        b.append(n.operations._payload)
+        print("opset for ", n.name)
+        print(n.operations._payload)
 
+    correct = 0
+    incorrect = 0
+    total = 0
 
-        for i in range(len(a[0])):
-            for m in range(i + 1, len(a[0])):
-                if i == m:
-                    continue
-                # if i < 50 and j < 50:
-                #     print("comparing: ", a[j][i].time_sent,a[j][m].time_sent)
-                if a[0][i].time_sent <= a[0][m].time_sent:
-                    # print("correct")
-                    correct += 1
-                else:
-                    # print("incorrect")
-                    incorrect += 1
-                total += 1
+    for i in range(len(b[0])):
+        for m in range(i, len(b[0])):
+            if i == m:
+                continue
+            if b[0][i].time_sent <= b[0][m].time_sent:
+                correct += 1
+            else:
+                incorrect += 1
+            total += 1
 
-        _perc = ((correct) / (total)) * 100
+    perc = ((correct) / (total)) * 100
 
-        b = []
-        #
-        for n in nodes:
-            b.append(n.operations._payload)
-            print("opset for ", n.name)
-            print(n.operations._payload)
+    x_list.append((it + 2,_perc))
+    x_list_bloom.append((it + 2,perc))
 
-        correct = 0
-        incorrect = 0
-        total = 0
+    print(x_list)
+    print(x_list_bloom)
 
-        for i in range(len(b[0])):
-            for m in range(i, len(b[0])):
-                if i == m:
-                    continue
-                if b[0][i].time_sent <= b[0][m].time_sent:
-                    correct += 1
-                else:
-                    incorrect += 1
-                total += 1
+if __name__ == '__main__':
 
-        perc = ((correct) / (total)) * 100
+    limit = 250
 
+    import matplotlib.pyplot as plt
 
-        x_list.append(it+2)
-        x_list_bloom.append(it+2)
-        y_list.append(_perc)
-        y_list_bloom.append(perc)
+    with multiprocessing.Manager() as manager:
+        x_list = manager.list()
+        x_list_bloom = manager.list()
 
-        it += 5
+        starttime = time.time()
+        processes = []
+
+        it = 100
+
+        for i in range(1,it+1):
+
+            p = multiprocessing.Process(target=run_loop,args=(i,x_list,x_list_bloom,limit))
+            processes.append(p)
+            p.start()
+
+            it += 25
 
 
-    x_list = np.array(x_list)
-    y_list = np.array(y_list)
-    x_list_bloom = np.array(x_list_bloom)
-    y_list_bloom = np.array(y_list_bloom)
-    plt.plot(x_list, y_list, 'xr-')
-    plt.plot(x_list_bloom,y_list_bloom,'xb-')
-    plt.axis([3, 100, 0, 100])
-    plt.xlabel("Node Count")
-    plt.ylabel("% Correct Classifications")
-    plt.show()
+        for process in processes:
+            process.join()
+
+        x_list = list(x_list)
+        x_list_bloom = list(x_list_bloom)
+
+        x_list = list(zip(*x_list))
+        x_list_bloom = list(zip(*x_list_bloom))
+
+        print(x_list)
+        print(x_list_bloom)
+
+        x_list_ = np.array(x_list[0])
+        y_list_ = np.array(x_list[1])
+
+        x_list_bloom_ = np.array(x_list_bloom[0])
+        y_list_bloom_ = np.array(x_list_bloom[1])
+
+        plt.plot(x_list_,y_list_,'xr-')
+        plt.plot(x_list_bloom_,y_list_bloom_,'xb-')
+
+        plt.axis([3, 100, 70, 100])
+        plt.xlabel("Node Count")
+        plt.ylabel("% Correct Classifications")
+        plt.show()
+
 
 
 

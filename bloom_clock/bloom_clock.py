@@ -19,7 +19,7 @@ from network_simulator.clock import Clock
 
 class BloomClock(Clock):
 
-    def __init__(self,time_iterations,filter=None,id=None):
+    def __init__(self,time_iterations=None,filter=None,id=None):
         self.size = 500
         self.hash_count = 2
         self.filter = BloomFilter(self.size,self.hash_count)

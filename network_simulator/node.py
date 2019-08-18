@@ -35,6 +35,8 @@ class Node(object):
         self.length = length
         self.operations = GSet()
 
+        self.dag = None
+
         # env.process(self.run())
 
     def __repr__(self):

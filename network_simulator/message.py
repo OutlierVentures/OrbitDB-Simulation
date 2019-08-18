@@ -3,7 +3,7 @@ import copy
 from bloom_clock.bloom_clock import BloomClock
 from bloom_clock.bloom_clock_operations import *
 from crdt.gset import GSet
-from network_simulator.clock import LamportClock
+from network_simulator.clock import LamportClock, HybridLamportBloom
 
 temp = 0
 
@@ -72,95 +72,74 @@ class Message(object):
     def get_log(self):
         return self.log
 
-    # def __eq__(self,other):
-    #     return True if self.clock.time == other.clock.time and self.clock.id == other.clock.id else False
-
     def __lt__(self,other):
-
         if self.type is "bloom":
-            assert isinstance(self.clock,BloomClock)
-            assert isinstance(other.clock,BloomClock)
-            assert self.clock is not other.clock
+            return self.sort_by_bloom(self,other)
 
-            # print("printing message ids: ",self.id,other.id)
-
-            if self.clock.happened_before(other.clock)[0] != 1:
-                # print("bloom filter returns true")
-                # print(self.sender.id, " before ",other.sender.id)
-                print(self.clock.happened_before(other.clock)[0])
-                return True
-
-            elif self.clock.happened_after(other.clock)[0] != 1:
-                # print("bloom filter returns false")
-                # print(self.clock.happened_before(other.clock)[0])
-                return False
-
-            else:
-                # print("bloom filter returns order based on id")
-                # print("id: ", self.id,other.id)
-                return True if self.id < other.id else False
+        elif self.type is "hybrid-bloom":
+            return self.sort_by_hybrid_bloom(self,other)
 
         else:
-            assert isinstance(self.clock,LamportClock)
-            assert isinstance(other.clock,LamportClock)
-            dist = self.clock.time - other.clock.time
+            return self.sort_by_lamport()
 
-            # if dist < 0:
-            #     # print("lamport returning true")
+    def sort_by_lamport(self,other):
+        assert isinstance(self.clock, LamportClock)
+        assert isinstance(other.clock, LamportClock)
+        dist = self.clock.time - other.clock.time
 
-            # print("trying to print some id's: ", self.id,other.id)
+        # if dist < 0:
+        #     # print("lamport returning true")
 
-            if dist == 0 and self.id != other.id:
-                print("id: ", self.id, other.id)
-                return True if self.id < other.id else False
+        # print("trying to print some id's: ", self.id,other.id)
 
-            print(self.sender.name," ---- ",other.sender.name)
-            print(self.id," ---- ",other.id)
-            print(self.temp, " ---- ", other.temp)
-            print(dist)
-            return True if dist < 0 else False
+        if dist == 0 and self.id != other.id:
+            print("id: ", self.id, other.id)
+            return True if self.id < other.id else False
 
-    # def __ne__(self, other):
-    #     if self.type is "bloom":
-    #         assert isinstance(self.clock, BloomClock)
-    #         assert isinstance(other.clock, BloomClock)
-    #         assert self.clock is not other.clock
-    # 
-    #         # print("printing message ids: ",self.id,other.id)
-    # 
-    #         if self.clock.happened_before(other.clock)[0] != 1:
-    #             # print("bloom filter returns true")
-    #             # print(self.sender.id, " before ",other.sender.id)
-    #             return True
-    # 
-    #         elif self.clock.happened_after(other.clock)[0] != 1:
-    #             # print("bloom filter returns false")
-    #             return True
-    # 
-    #         else:
-    #             # print("bloom filter returns order based on id")
-    #             # print("id: ", self.id,other.id)
-    #             return True if self.id != other.id else False
-    # 
-    #     else:
-    #         assert isinstance(self.clock, LamportClock)
-    #         assert isinstance(other.clock, LamportClock)
-    #         dist = self.clock.time - other.clock.time
-    # 
-    #         if dist < 0:
-    #             pass
-    #             # print("lamport returning true")
-    # 
-    #         # print("trying to print some id's: ", self.id,other.id)
-    # 
-    #         if dist is 0 and self.id != other.id:
-    #             return True
-    # 
-    #         return True if dist != 0 else False
+        print(self.sender.name, " ---- ", other.sender.name)
+        print(self.id, " ---- ", other.id)
+        print(self.temp, " ---- ", other.temp)
+        print(dist)
+        return True if dist < 0 else False
 
-    # def __gt__(self, other):
-    # return other<self
-    # def __ge__(self, other):
-    # return not self<other
-    # def __le__(self, other):
-    # return not other<self
+    def sort_by_bloom(self,other):
+        assert isinstance(self.clock, BloomClock)
+        assert isinstance(other.clock, BloomClock)
+        assert self.clock is not other.clock
+
+        # print("printing message ids: ",self.id,other.id)
+
+        if self.clock.happened_before(other.clock)[0] != 1:
+            # print("bloom filter returns true")
+            # print(self.sender.id, " before ",other.sender.id)
+            print(self.clock.happened_before(other.clock)[0])
+            return True
+
+        elif self.clock.happened_after(other.clock)[0] != 1:
+            # print("bloom filter returns false")
+            # print(self.clock.happened_before(other.clock)[0])
+            return False
+
+        else:
+            # print("bloom filter returns order based on id")
+            # print("id: ", self.id,other.id)
+            return True if self.id < other.id else False
+
+    def sort_by_hybrid_bloom(self,other):
+        assert isinstance(self.clock, HybridLamportBloom)
+        assert isinstance(other.clock, HybridLamportBloom)
+        dist = self.clock.lamport.time - other.clock.lamport.time
+
+        if dist == 0 and self.id != other.id:
+            print("id: ", self.id, other.id)
+            if self.clock.bloom.happened_before(other.clock)[0] != 1:
+                return True
+            if other.clock.bloom.happened_before(other.clock)[0] != 1:
+                return False
+            return True if self.id < other.id else False
+
+        print(self.sender.name, " ---- ", other.sender.name)
+        print(self.id, " ---- ", other.id)
+        print(self.temp, " ---- ", other.temp)
+        print(dist)
+        return True if dist < 0 else False
