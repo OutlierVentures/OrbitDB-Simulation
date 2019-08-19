@@ -1,70 +1,3 @@
-# import random
-# import simpy
-# # from node import Node
-# from nodemanager import NodeManager
-# from nodemanager import PingHandler
-# from nodemanager import PeerRequestHandler
-# from networkx.drawing.nx_agraph import graphviz_layout
-
-# NODE_COUNT = 3
-# DURATION = 5
-# KB = 1024/8
-# #VISUALIZATION = True
-# VISUALIZATION = False
-#
-# def managed_peer(name, env):
-#     p = Node(name, env)
-#     p.properties.append(NodeManager(p))
-#     p.properties.append(PeerRequestHandler())
-#     p.properties.append(PingHandler())
-#
-#     return p
-#
-# def create_peers(peerserver, num):
-#     peers = []
-#     for i in range(num):
-#         p = managed_peer('P%d' % i, env)
-#
-#         connection_manager = p.properties[0]
-#         x = random.randint(0,2)
-#         #x = 0
-#         print "connecting to server"
-#         connection_manager.connect_peer(peerserver[x])
-#         peers.append(p)
-#         #p.connect(peerserver[x])
-#     #
-#     # for p in peers[:int(num * 0.5)]:
-#     #     p.up = max(384, random.gauss(12000, 6000)) * KB
-#     #     p.down = max(128, random.gauss(4800, 2400)) * KB
-#     #
-#     # for p in peers[int(num * 0.5):]:
-#     #     p.up = p.down = max(10000, random.gauss(100000, 50000)) * KB
-#
-#     return peers
-#
-# env = simpy.Environment()
-#
-# """hub and spoke network model"""
-# peers = []
-# peers.append(managed_peer('PeerServer_one', env))
-# peers.append(managed_peer('PeerServer_two', env))
-# peers.append(managed_peer('PeerServer_three', env))
-#
-# for p in peers:
-#     for l in peers:
-#         if l is p:
-#             continue
-#         else:
-#             p.connect(l)
-#
-# peers += create_peers(peers, NODE_COUNT)
-#
-# print 'starting sim'
-# if VISUALIZATION:
-#     from visualize import Visualizer
-#     Visualizer(env, peers)
-# else:
-#     env.run(until=DURATION)
 import multiprocessing
 import time
 
@@ -103,7 +36,7 @@ def get_state(simulation=None,string=""):
     fileHandler = open(name, "rb")
     return pickle.load(fileHandler)
 
-def run_loop(it, x_list,x_list_bloom,limit):
+def run_loop(it, x_list,x_list_bloom,limit,parameters):
     stats = SimulationAnalyser()
     bloom_stats = SimulationAnalyser()
 
@@ -114,13 +47,16 @@ def run_loop(it, x_list,x_list_bloom,limit):
 
     spokes = create_peers(it, limit)
 
-    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True)
+    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True,dropout=parameters[0],
+                            dropout_distr = parameters[1],latency=parameters[2],event_type=parameters[3],
+                            message_loss=parameters[4],hash_count=parameters[5],filter_size=parameters[6])
+
     env.setup()
     a = str(it)
     copy = get_state(env,string=a)
     env.run_simulation()
 
-    copy.change_clock("bloom", bloom_stats)
+    copy.change_clock("hybrid-bloom", bloom_stats)
     copy.run_simulation()
 
     nodes = copy.G.nodes()
@@ -136,9 +72,9 @@ def run_loop(it, x_list,x_list_bloom,limit):
     print("printing lamport clock opsets")
     for n in _nodes:
         a.append(n.operations._payload)
-        # print("opset for ", n.name)
-        # print(n.operations._payload)
-        # print(len(n.operations.get_payload()))
+        print("opset for ", n.name)
+        print(n.operations._payload)
+        print(len(n.operations.get_payload()))
 
     for i in range(len(a[0])):
         for m in range(i + 1, len(a[0])):
@@ -157,11 +93,11 @@ def run_loop(it, x_list,x_list_bloom,limit):
     _perc = ((correct) / (total)) * 100
 
     b = []
-    #
+
     for n in nodes:
         b.append(n.operations._payload)
-        print("opset for ", n.name)
-        print(n.operations._payload)
+        # print("opset for ", n.name)
+        # print(n.operations._payload)
 
     correct = 0
     incorrect = 0
@@ -182,12 +118,15 @@ def run_loop(it, x_list,x_list_bloom,limit):
     x_list.append((it + 2,_perc))
     x_list_bloom.append((it + 2,perc))
 
+    print(correct)
+    print(total)
+
     print(x_list)
     print(x_list_bloom)
 
 if __name__ == '__main__':
 
-    limit = 250
+    limit = 50
 
     import matplotlib.pyplot as plt
 
@@ -200,14 +139,15 @@ if __name__ == '__main__':
 
         it = 100
 
-        for i in range(1,it+1):
+        x = [70, 'normal', 'consistent', 'random', False, 3, 100]
 
-            p = multiprocessing.Process(target=run_loop,args=(i,x_list,x_list_bloom,limit))
+        for i in range(10):
+
+            p = multiprocessing.Process(target=run_loop,args=(i,x_list,x_list_bloom,limit,x))
             processes.append(p)
             p.start()
 
-            it += 25
-
+            i += 30
 
         for process in processes:
             process.join()
@@ -230,18 +170,10 @@ if __name__ == '__main__':
         plt.plot(x_list_,y_list_,'xr-')
         plt.plot(x_list_bloom_,y_list_bloom_,'xb-')
 
-        plt.axis([3, 100, 70, 100])
+        plt.axis([0, 100, 70, 100])
         plt.xlabel("Node Count")
         plt.ylabel("% Correct Classifications")
         plt.show()
-
-
-
-
-
-
-
-
 
 
     # spokes = create_peers(30, limit)

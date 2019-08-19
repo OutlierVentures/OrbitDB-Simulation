@@ -1,9 +1,7 @@
-import copy
-import pickle
-
 import networkx as nx
 import matplotlib.pyplot as plt
-from network_simulator.node import Node
+import numpy
+import numpy as np
 import random
 import progressbar
 from time import sleep
@@ -12,30 +10,45 @@ from network_simulator.disruption import Disruption
 from network_simulator.simulation_analyser import SimulationAnalyser
 
 
-
 class SimulationManager:
 
-    def __init__(self,hubs,spokes,analyser,bloom_analyser,size=None,time_limit=None,drop_prob=None,broadcast=False):
+    def __init__(self,hubs,spokes,analyser,size=None,time_limit=None,broadcast=False,dropout=30,
+                 dropout_distr="normal",latency="random",event_type="random",message_loss=True,hash_count=3,filter_size=50):
 
-        #assert isinstance(hubs,Iterable)
-        #assert isinstance(spokes,Iterable)
         self.hubs = hubs
         self.spokes = spokes
-
         self.G = nx.DiGraph()
-        self._startingGraph = None
         self._activeNodes = set()
         self._droppedNodes = set()
 
         self.size = size
         self.timeLimit = time_limit
-        self.dropProb = drop_prob if drop_prob is not None else 7
-        self.current_time = 0
+        self.dropProb = dropout
+        self.dropDistr = dropout_distr
 
+        if latency == "consistent":
+            for h in self.hubs:
+                h.up,h.down = 5,1
+            for s in self.spokes:
+                s.up,s.down = 5,1
+
+        if not message_loss:
+            for h in self.hubs:
+                h.change_message_protocol()
+            for s in self.spokes:
+                s.change_message_protocol()
+
+        for h in self.hubs:
+            h.set_bloom_parameters(hash_count,filter_size)
+        for s in self.spokes:
+            s.set_bloom_parameters(hash_count,filter_size)
+
+        self.event_creation = event_type
+
+        self.current_time = 0
         self.messages = []
         self._messagesGenerated = 0
         self._messageCount = 0
-
         self.stats = analyser
 
         self.broadcast = broadcast
@@ -186,6 +199,13 @@ class SimulationManager:
         current_dropouts = set()
         reconnections = [[] for i in range(self.timeLimit * 1000)]
 
+        print(list(self.G.nodes()))
+        allNodes = numpy.array(self.G.nodes())
+        np.random.shuffle(allNodes)
+        bias_weights = [(x /(len(allNodes) + 1)) for x in range(1,len(allNodes)+1)]
+        prob = np.array(bias_weights) / np.sum(bias_weights)
+
+
         for i in range(self.timeLimit):
             if reconnections[i]:
                 for n in reconnections[i]:
@@ -194,37 +214,38 @@ class SimulationManager:
             nodes = list(set(self.G.nodes()) - current_dropouts)
 
             drop_prob = random.randint(0,100)
-            if drop_prob > 60 and nodes:
+
+            if drop_prob < self.dropProb and nodes:
                 reconnect_time = random.randint(i+1, i+50)
-                n = random.choice(nodes)
+
+                if self.dropDistr == "skewed":
+                    assert None not in current_dropouts
+                    n = np.random.choice(allNodes,p=prob)
+                    while n in current_dropouts:
+                        n = np.random.choice(allNodes,p=prob)
+
+                else:
+                    n = random.choice(nodes)
+
                 current_dropouts.add(n)
                 index = nodes.index(n)
                 del nodes[index]
                 reconnections[reconnect_time].append(n)
                 d = Disruption(n,i,reconnect_time)
                 self.disruptions.append(d)
+
             else:
                 self.disruptions.append(None)
 
-            # I need to add in the capability that zero messages may be sent at
-            # a given simulation iteration
-            # if not nodes:
-            #     bar.update(i + 1)
-            #     sleep(0.1)
-            #     self.messages.append(None)
-            #     self.timeLimit += 1
-            #     continue
+            if self.event_creation == "skewed":
+                network = np.array(self.G.nodes())
+                np.random.shuffle(network)
+                bias_weights = [(x / (len(network) + 1)) for x in range(1, len(network) + 1)]
+                prob = np.array(bias_weights) / np.sum(bias_weights)
+                sender = np.random.choice(allNodes,p=prob)
 
-            # if x is None:
-            sender = random.choice(list(self.G.nodes()))
-                # x = sender
-            # else:
-            #     while sender is not x:
-            #         sender = random.choice(list(self.G.nodes()))
-
-            # print "Sender for time period " + str(i) + ": " + str(sender.id)
-            # maybe this isn't a particularly efficient way of doing it
-            # nodes = list(self.G.nodes())
+            else:
+                sender = random.choice(list(self.G.nodes()))
 
             if self.broadcast:
                 receivers = {}
@@ -336,4 +357,3 @@ class SimulationManager:
         for n in self.G.nodes():
             n.change_type(type)
             n.stats = stats
-

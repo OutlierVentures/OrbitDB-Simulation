@@ -1,9 +1,9 @@
 import copy
 
-from bloom_clock.bloom_clock import BloomClock
+from bloom_clock.bloom_clock import BloomClock,HybridLamportBloom
 from bloom_clock.bloom_clock_operations import *
 from crdt.gset import GSet
-from network_simulator.clock import LamportClock, HybridLamportBloom
+from network_simulator.clock import LamportClock
 
 temp = 0
 
@@ -73,14 +73,16 @@ class Message(object):
         return self.log
 
     def __lt__(self,other):
-        if self.type is "bloom":
-            return self.sort_by_bloom(self,other)
+        print(self.type)
+        print(other.type)
+        if self.type == "bloom":
+            return self.sort_by_bloom(other)
 
-        elif self.type is "hybrid-bloom":
-            return self.sort_by_hybrid_bloom(self,other)
+        elif self.type == "hybrid-bloom":
+            return self.sort_by_hybrid_bloom(other)
 
         else:
-            return self.sort_by_lamport()
+            return self.sort_by_lamport(other)
 
     def sort_by_lamport(self,other):
         assert isinstance(self.clock, LamportClock)
@@ -130,12 +132,16 @@ class Message(object):
         assert isinstance(other.clock, HybridLamportBloom)
         dist = self.clock.lamport.time - other.clock.lamport.time
 
+        if self.clock.bloom.happened_before(other.clock.bloom)[0] != 1:
+            if other.clock.bloom.happened_before(self.clock.bloom)[0] != 1:
+                return False
+            return True
+
+        if self.clock.bloom.happened_after(other.clock.bloom)[0] != 1:
+            return False
+
         if dist == 0 and self.id != other.id:
             print("id: ", self.id, other.id)
-            if self.clock.bloom.happened_before(other.clock)[0] != 1:
-                return True
-            if other.clock.bloom.happened_before(other.clock)[0] != 1:
-                return False
             return True if self.id < other.id else False
 
         print(self.sender.name, " ---- ", other.sender.name)

@@ -2,7 +2,7 @@ import copy
 import random
 import uuid
 
-from bloom_clock.bloom_clock import BloomClock
+from bloom_clock.bloom_clock import BloomClock, HybridLamportBloom
 from network_simulator.clock import LamportClock
 from crdt.gset import GSet
 import operator
@@ -21,15 +21,19 @@ class Node(object):
         self.id = uuid.uuid4()
         self.messages = [[] for i in range(length * 50)]
         self.bloom_messages = [[] for i in range(length * 50)]
-        self.up = random.randint(1, 10)
+        self.up = random.randint(1,10)
         self.down = random.randint(1, self.up)
         self.is_dropped = False
+        self.lose_messages = False
         self.reactivation_time = -1
         self.incrementer = None
         self.message_queue = []
         self.pending_messages = []
         self.stats = None
         self.bloom_stats = None
+
+        self.filter_size = -1
+        self.hash_count = -1
 
         self.clock = LamportClock()
         self.length = length
@@ -44,7 +48,9 @@ class Node(object):
 
     def change_type(self,type):
         if type == "bloom":
-            self.clock = BloomClock(self.length)
+            self.clock = BloomClock(hash_count=self.hash_count,filter_size=self.filter_size)
+        if type == 'hybrid-bloom':
+            self.clock = HybridLamportBloom(hash_count=self.hash_count,filter_size=self.filter_size)
 
     def receive_clock_broadcast(self, time):
         self.get_message(time)
@@ -120,16 +126,20 @@ class Node(object):
         # print(list(self.message_queue.queue))
         while len(self.pending_messages):
             m = self.pending_messages.pop(0)
-            self.add_to_opset(m)
-            m.readjust(timestamp)
             receivers = m.get_receivers()
+            if not self.lose_messages:
+                self.add_to_opset(m)
+                m.readjust(timestamp)
+                for r in receivers:
+                    r.receive(m)
             for r in receivers:
-                r.receive(m)
+                r.incrementer()
 
-        while len(self.message_queue) > 0:
+        while len(self.message_queue):
             msg = self.message_queue.pop(0)
-            self.add_to_opset(msg)
-            self.clock = self.clock.receive_event(msg.clock)
+            if not self.lose_messages:
+                self.add_to_opset(msg)
+                self.clock = self.clock.receive_event(msg.clock)
             self.incrementer()
 
 
@@ -149,6 +159,8 @@ class Node(object):
                 confl = Conflict(ops)
             if isinstance(self.clock,BloomClock):
                 confl = Conflict(ops,"bloom")
+            if isinstance(self.clock,HybridLamportBloom):
+                confl = Conflict(ops,"hybrid-bloom")
 
             # self.stats.record_conflict(confl)
             self.stats.record_conflict(confl)
@@ -170,3 +182,9 @@ class Node(object):
             self.operations.add(op)
             op.add_log(self.operations)
 
+    def change_message_protocol(self):
+        self.lose_messages = True
+
+    def set_bloom_parameters(self,hash_count,filter_size):
+        self.hash_count = hash_count
+        self.filter_size = filter_size

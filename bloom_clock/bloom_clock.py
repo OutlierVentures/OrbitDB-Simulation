@@ -4,7 +4,8 @@ from bloom_clock.bloom_filter import BloomFilter
 import math
 import copy
 
-from network_simulator.clock import Clock
+from network_simulator.clock import Clock, LamportClock
+
 
 # IDList = []
 # for i in range(0,1000000):
@@ -19,9 +20,9 @@ from network_simulator.clock import Clock
 
 class BloomClock(Clock):
 
-    def __init__(self,time_iterations=None,filter=None,id=None):
-        self.size = 500
-        self.hash_count = 2
+    def __init__(self,time_iterations=None,filter=None,id=None,hash_count=3,filter_size=50):
+        self.size = filter_size
+        self.hash_count = hash_count
         self.filter = BloomFilter(self.size,self.hash_count)
         if filter is not None:
             if isinstance(filter,BloomFilter):
@@ -41,7 +42,7 @@ class BloomClock(Clock):
 
     def receive_event(self,item):
         # print(type(item))
-        assert isinstance(item,BloomClock)
+        assert isinstance(item,BloomClock) or isinstance(item,HybridLamportBloom)
         assert item is not self
         clock = self.merge_clocks(self,item)
         return clock
@@ -58,7 +59,7 @@ class BloomClock(Clock):
         self.filter = filter
 
     def compare(self, b):
-        assert isinstance(b,BloomClock)
+        assert isinstance(b,BloomClock) or isinstance(b,HybridLamportBloom)
 
         firstBigger = 0
         secondBigger = 0
@@ -127,8 +128,8 @@ class BloomClock(Clock):
 
     @staticmethod
     def merge_clocks(a, b):
-        assert isinstance(a,BloomClock)
-        assert isinstance(b,BloomClock)
+        assert isinstance(a,BloomClock) or isinstance(a,HybridLamportBloom)
+        assert isinstance(b,BloomClock) or isinstance(b,HybridLamportBloom)
 
         new_filter = []
 
@@ -153,3 +154,34 @@ class BloomClock(Clock):
     def __repr__(self):
         return self.get_filter()
 
+
+class HybridLamportBloom(Clock):
+
+    def __init__(self,time=None,lamport=None,bloom=None,hash_count=3,filter_size=50):
+        global counter
+        self.time = 0 if time is None else time
+        self.type = "hybrid-bloom"
+        self.lamport = LamportClock() if lamport is None else lamport
+        self.hash_count = hash_count
+        self.filter_size = filter_size
+        self.bloom = BloomClock(hash_count=self.hash_count,filter_size=self.filter_size) if bloom is None else bloom
+        self.id = (self.lamport.get_id(),self.bloom.get_id()) if id is None else id
+
+    def send_event(self,item=None):
+        self.lamport.send_event()
+        self.bloom.send_event(item)
+
+    def receive_event(self,item=None):
+        return self.merge(item)
+
+    def merge(self,clock):
+        new_lamport = self.lamport.receive_event(clock.lamport)
+        new_bloom = self.bloom.receive_event(clock.bloom)
+        new_id = (new_lamport.get_id(),new_bloom.get_id())
+        return HybridLamportBloom(new_id,new_lamport,new_bloom)
+
+    def get_clock(self):
+        return HybridLamportBloom(self.id,self.lamport,self.bloom,self.hash_count,self.filter_size)
+
+    def get_id(self):
+        return self.id
