@@ -4,13 +4,13 @@ import time
 import numpy as np
 import pickle
 
-from network_simulator.node import Node
+from network_simulator.peer import Peer
 from network_simulator.simulation_analyser import SimulationAnalyser
 from network_simulator.simulation_manager import SimulationManager
 
 
 def managed_peer(name, limit):
-    p = Node(name, limit)
+    p = Peer(name, limit)
     # p.properties.append(p)
     # p.properties.append(PeerRequestHandler())
     # p.properties.append(PingHandler())
@@ -36,130 +36,109 @@ def get_state(simulation=None,string=""):
     fileHandler = open(name, "rb")
     return pickle.load(fileHandler)
 
-def run_loop(it, x_list,x_list_bloom,limit,parameters):
+def run_loop(it, x_list,x_list_bloom,x_list_hybrid_bloom,limit,parameters):
     stats = SimulationAnalyser()
     bloom_stats = SimulationAnalyser()
+    hybrid_bloom_stats = SimulationAnalyser()
 
     peers = []
     peers.append(managed_peer('PeerServer_one', limit))
     peers.append(managed_peer('PeerServer_two', limit))
-    # peers.append(managed_peer('PeerServer_three', limit))
 
+    it += 1
     spokes = create_peers(it, limit)
 
-    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True,dropout=parameters[0],
-                            dropout_distr = parameters[1],latency=parameters[2],event_type=parameters[3],
-                            message_loss=parameters[4],hash_count=parameters[5],filter_size=parameters[6])
+    env = SimulationManager(peers, spokes, stats, bloom_stats, time_limit=limit, broadcast=True,
+                            dropout=parameters[0], dropout_distr = parameters[1],latency=parameters[2],
+                            event_type=parameters[3],message_loss=parameters[4])
 
     env.setup()
     a = str(it)
     copy = get_state(env,string=a)
+    other_copy = get_state(env, string=a)
+
     env.run_simulation()
 
-    copy.change_clock("hybrid-bloom", bloom_stats)
+    copy.change_clock("dag-height", bloom_stats)
     copy.run_simulation()
 
-    nodes = copy.G.nodes()
-    _nodes = env.G.nodes()
+    # other_copy.change_clock("hybrid-bloom",hybrid_bloom_stats)
+    # other_copy.run_simulation()
 
-    correct = 0
-    incorrect = 0
-    total = 0
+    nodes = env.G.nodes()
+    _nodes = copy.G.nodes()
+    # __nodes = other_copy.G.nodes()
 
-    messages = copy.messages
+    perc = analyse_log(nodes)
+    _perc = analyse_log(_nodes)
+    # __perc = analyse_log(__nodes)
 
-    a = []
-    print("printing lamport clock opsets")
-    for n in _nodes:
-        a.append(n.operations._payload)
+    x_list.append((it + 2,perc))
+    x_list_bloom.append((it + 2,_perc))
+    # x_list_hybrid_bloom.append((it+2,__perc))
+
+def analyse_log(nodes):
+    correct=incorrect=total = 0
+    array = []
+    for n in nodes:
+        array.append(n.operations._payload)
         print("opset for ", n.name)
         print(n.operations._payload)
         print(len(n.operations.get_payload()))
-
-    for i in range(len(a[0])):
-        for m in range(i + 1, len(a[0])):
+    for i in range(len(array[0])):
+        for m in range(i + 1, len(array[0])):
             if i == m:
                 continue
-            # if i < 50 and j < 50:
-            #     print("comparing: ", a[j][i].time_sent,a[j][m].time_sent)
-            if a[0][i].time_sent <= a[0][m].time_sent:
-                # print("correct")
-                correct += 1
-            else:
-                # print("incorrect")
-                incorrect += 1
-            total += 1
-
-    _perc = ((correct) / (total)) * 100
-
-    b = []
-
-    for n in nodes:
-        b.append(n.operations._payload)
-        # print("opset for ", n.name)
-        # print(n.operations._payload)
-
-    correct = 0
-    incorrect = 0
-    total = 0
-
-    for i in range(len(b[0])):
-        for m in range(i, len(b[0])):
-            if i == m:
-                continue
-            if b[0][i].time_sent <= b[0][m].time_sent:
+            if array[0][i].time_sent <= array[0][m].time_sent:
                 correct += 1
             else:
                 incorrect += 1
             total += 1
 
     perc = ((correct) / (total)) * 100
+    return perc
 
-    x_list.append((it + 2,_perc))
-    x_list_bloom.append((it + 2,perc))
-
-    print(correct)
-    print(total)
-
-    print(x_list)
-    print(x_list_bloom)
 
 if __name__ == '__main__':
 
-    limit = 50
+    limit = 100
 
     import matplotlib.pyplot as plt
 
     with multiprocessing.Manager() as manager:
         x_list = manager.list()
         x_list_bloom = manager.list()
+        x_list_hybrid_bloom = manager.list()
 
         starttime = time.time()
         processes = []
 
         it = 100
 
-        x = [70, 'normal', 'consistent', 'random', False, 3, 100]
+        x = [60, 'skewed', 'random', 'skewed',True,2,500]
 
-        for i in range(10):
-
-            p = multiprocessing.Process(target=run_loop,args=(i,x_list,x_list_bloom,limit,x))
+        for i in range(49,500,75):
+            p = multiprocessing.Process(target=run_loop,args=(i,x_list,x_list_bloom,x_list_hybrid_bloom,limit,x))
             processes.append(p)
             p.start()
-
-            i += 30
 
         for process in processes:
             process.join()
 
         x_list = list(x_list)
+        x_list = sorted(x_list, key=lambda x: x[0])
         x_list_bloom = list(x_list_bloom)
+        x_list_bloom = sorted(x_list_bloom, key=lambda x: x[0])
+        x_list_hybrid_bloom = list(x_list_hybrid_bloom)
+        x_list_hybrid_bloom = sorted(x_list_hybrid_bloom, key=lambda x: x[0])
+
+        print(x_list)
 
         x_list = list(zip(*x_list))
         x_list_bloom = list(zip(*x_list_bloom))
+        x_list_hybrid_bloom = list(zip(*x_list_hybrid_bloom))
 
-        print(x_list)
-        print(x_list_bloom)
+        print(x_list_hybrid_bloom)
 
         x_list_ = np.array(x_list[0])
         y_list_ = np.array(x_list[1])
@@ -167,12 +146,17 @@ if __name__ == '__main__':
         x_list_bloom_ = np.array(x_list_bloom[0])
         y_list_bloom_ = np.array(x_list_bloom[1])
 
-        plt.plot(x_list_,y_list_,'xr-')
-        plt.plot(x_list_bloom_,y_list_bloom_,'xb-')
+        x_list_hybrid_bloom_ = np.array(x_list_hybrid_bloom[0])
+        y_list_hybrid_bloom_ = np.array(x_list_hybrid_bloom[1])
 
-        plt.axis([0, 100, 70, 100])
+        plt.plot(x_list_,y_list_,'xr-',label='Lamport Clock')
+        plt.plot(x_list_bloom_,y_list_bloom_,'xb-',label='Bloom Clock')
+        plt.plot(x_list_hybrid_bloom_,y_list_hybrid_bloom_,'xg-',label='Hybrid-Bloom Clock')
+
+        plt.axis([45,180,0, 100])
         plt.xlabel("Node Count")
         plt.ylabel("% Correct Classifications")
+        plt.legend()
         plt.show()
 
 

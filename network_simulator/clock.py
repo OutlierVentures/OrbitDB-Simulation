@@ -40,6 +40,7 @@ class LamportClock(Clock):
         self.id = self.time if id is None else id
         self.type = "lamport"
         self.dag_height = 0
+        self.dag = False
 
     def send_event(self,item=None):
         self.increment()

@@ -1,19 +1,17 @@
-import copy
 import random
 import uuid
+from collections import Iterable
 
+from DAG.merkle_dag import DAG,Node
 from bloom_clock.bloom_clock import BloomClock, HybridLamportBloom
 from network_simulator.clock import LamportClock
 from crdt.gset import GSet
-import operator
 
 from network_simulator.conflict import Conflict
 from network_simulator.message import Message
 
-from bloom_clock.bloom_clock_operations import *
 
-
-class Node(object):
+class Peer(object):
 
     def __init__(self, id, length):
 
@@ -39,7 +37,7 @@ class Node(object):
         self.length = length
         self.operations = GSet()
 
-        self.dag = None
+        self.dag = DAG()
 
         # env.process(self.run())
 
@@ -51,6 +49,8 @@ class Node(object):
             self.clock = BloomClock(hash_count=self.hash_count,filter_size=self.filter_size)
         if type == 'hybrid-bloom':
             self.clock = HybridLamportBloom(hash_count=self.hash_count,filter_size=self.filter_size)
+        if type == 'dag-height':
+            self.clock.dag = True
 
     def receive_clock_broadcast(self, time):
         self.get_message(time)
@@ -114,26 +114,30 @@ class Node(object):
     def add_to_message_queue(self, msg):
         self.message_queue.append(msg)
 
-    def handle_message(self, msg, time):
+    def handle_message(self, msg, time,dag=True):
         i = self.messages[time].index(msg)
         self.messages[time][i] = None
         self.incrementer()
         self.clock = self.clock.receive_event(msg.clock)
         print(self.name + " receiving message from " + msg.sender.name, msg.temp)
         self.add_to_opset(msg)
+        if dag:
+            self.add_to_dag(msg)
 
     def handle_message_backlog(self,timestamp):
-        # print(list(self.message_queue.queue))
+        self.pending_messages = sorted(self.pending_messages)
         while len(self.pending_messages):
             m = self.pending_messages.pop(0)
             receivers = m.get_receivers()
+            self.add_to_opset(m)
+            self.add_to_dag(m)
             if not self.lose_messages:
-                self.add_to_opset(m)
                 m.readjust(timestamp)
                 for r in receivers:
                     r.receive(m)
-            for r in receivers:
-                r.incrementer()
+            else:
+                for r in receivers:
+                    r.incrementer()
 
         while len(self.message_queue):
             msg = self.message_queue.pop(0)
@@ -141,7 +145,6 @@ class Node(object):
                 self.add_to_opset(msg)
                 self.clock = self.clock.receive_event(msg.clock)
             self.incrementer()
-
 
     def conflict_resolution(self,time):
         print("resolving conflicts....")
@@ -168,7 +171,9 @@ class Node(object):
             print("ignore")
 
         for o in ops:
-            self.handle_message(o,time)
+            self.handle_message(o,time,dag=False)
+
+        self.add_to_dag(ops)
 
     def add_to_opset(self,op):
         assert isinstance(op,Message)
@@ -177,10 +182,25 @@ class Node(object):
         if op.sender is not self:
             print("about to perform a merge between ",self.name,op.sender.name)
             self.operations = self.operations.merge(op.get_log())
+            self.dag = self.dag.merge(op.dag)
             # op.sender.operations = self.operation
         else:
             self.operations.add(op)
             op.add_log(self.operations)
+
+    def add_to_dag(self,op):
+        if isinstance(op,Iterable):
+            toAdd = []
+            for o in op:
+                toAdd.append(Node(id(o),o))
+            self.dag.add_multiple(toAdd)
+
+        else:
+            if op.sender is not self:
+                self.dag = self.dag.merge(op.dag)
+            else:
+                self.dag.add(Peer(Node(id(op),op)))
+                op.set_dag(self.dag)
 
     def change_message_protocol(self):
         self.lose_messages = True

@@ -25,6 +25,7 @@ class Message(object):
         self.type = None
         self.log = None
         self.clock_changed = False
+        self.dag = None
         
     @property
     def size(self):
@@ -72,6 +73,12 @@ class Message(object):
     def get_log(self):
         return self.log
 
+    def set_dag(self,dag):
+        self.dag = dag
+
+    def get_dag_height(self):
+        return self.dag.height
+
     def __lt__(self,other):
         print(self.type)
         print(other.type)
@@ -80,6 +87,9 @@ class Message(object):
 
         elif self.type == "hybrid-bloom":
             return self.sort_by_hybrid_bloom(other)
+
+        elif self.type == "dag-height":
+            return self.sort_by_dag_height()
 
         else:
             return self.sort_by_lamport(other)
@@ -112,10 +122,13 @@ class Message(object):
         # print("printing message ids: ",self.id,other.id)
 
         if self.clock.happened_before(other.clock)[0] != 1:
+            if other.clock.happened_before(self.clock)[0] != 1:
+                return False
             # print("bloom filter returns true")
             # print(self.sender.id, " before ",other.sender.id)
-            print(self.clock.happened_before(other.clock)[0])
-            return True
+            else:
+                print(self.clock.happened_before(other.clock)[0])
+                return True
 
         elif self.clock.happened_after(other.clock)[0] != 1:
             # print("bloom filter returns false")
@@ -142,6 +155,28 @@ class Message(object):
 
         if dist == 0 and self.id != other.id:
             print("id: ", self.id, other.id)
+            return True if self.id < other.id else False
+
+        print(self.sender.name, " ---- ", other.sender.name)
+        print(self.id, " ---- ", other.id)
+        print(self.temp, " ---- ", other.temp)
+        print(dist)
+        return True if dist < 0 else False
+
+    def sort_by_dag_height(self,other):
+        assert isinstance(self.clock, LamportClock)
+        assert isinstance(other.clock, LamportClock)
+        dist = self.clock.time - other.clock.time
+
+        # if dist < 0:
+        #     # print("lamport returning true")
+
+        # print("trying to print some id's: ", self.id,other.id)
+
+        if self.get_dag_height() > other.dag_height():
+            return True
+
+        if dist == 0 and self.id != other.id:
             return True if self.id < other.id else False
 
         print(self.sender.name, " ---- ", other.sender.name)

@@ -31,13 +31,14 @@ class SimulationManager:
                 h.up,h.down = 5,1
             for s in self.spokes:
                 s.up,s.down = 5,1
-
-        if not message_loss:
+        #
+        if message_loss:
             for h in self.hubs:
                 h.change_message_protocol()
             for s in self.spokes:
                 s.change_message_protocol()
-
+        #
+        hash_count,filter_size = 3,500
         for h in self.hubs:
             h.set_bloom_parameters(hash_count,filter_size)
         for s in self.spokes:
@@ -237,15 +238,15 @@ class SimulationManager:
             else:
                 self.disruptions.append(None)
 
-            if self.event_creation == "skewed":
-                network = np.array(self.G.nodes())
-                np.random.shuffle(network)
-                bias_weights = [(x / (len(network) + 1)) for x in range(1, len(network) + 1)]
-                prob = np.array(bias_weights) / np.sum(bias_weights)
-                sender = np.random.choice(allNodes,p=prob)
-
-            else:
-                sender = random.choice(list(self.G.nodes()))
+            # if self.event_creation == "skewed":
+            #     network = np.array(self.G.nodes())
+            #     np.random.shuffle(network)
+            #     bias_weights = [(x / (len(network) + 1)) for x in range(1, len(network) + 1)]
+            #     prob = np.array(bias_weights) / np.sum(bias_weights)
+            #     sender = np.random.choice(allNodes,p=prob)
+            #
+            # else:
+            sender = random.choice(list(self.G.nodes()))
 
             if self.broadcast:
                 receivers = {}
