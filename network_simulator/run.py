@@ -2,6 +2,7 @@ import copy
 import itertools
 import multiprocessing
 import os
+import time
 from uuid import uuid4
 
 import numpy as np
@@ -76,6 +77,7 @@ def run_loop(it, x_list,x_list_bloom,x_list_hybrid_bloom,x_list_dag_height,limit
     env.setup()
     a = str(it) + str(uuid4())
     states = []
+    states.append(env)
     for i in range(3):
         states.append(get_state(env,string=a))
 
@@ -83,22 +85,31 @@ def run_loop(it, x_list,x_list_bloom,x_list_hybrid_bloom,x_list_dag_height,limit
     states[HYBRID].change_clock("hybrid-bloom",hybrid_bloom_stats)
     states[HEIGHT].change_clock("dag-height", dag_stats)
 
-    env.run_simulation()
-    nodes = env.G.nodes()
-    other_nodes = []
-    for s in states:
-        s.run_simulation()
-        other_nodes.append(s.G.nodes())
+    def start(state):
+        state.run_simulation
 
-    perc = analyse_log(nodes)
-    percs = []
-    for n in other_nodes:
-        percs.append(analyse_log(n))
+    with multiprocessing.Manager() as manager:
+        percs = manager.list()
+        processes = []
+        for s in states:
+            p = multiprocessing.Process(target=start, args=(s))
+            processes.append(p)
+            p.start()
 
-    x_list.append((it + 2,perc))
-    x_list_bloom.append((it + 2,percs[BLOOM]))
-    x_list_hybrid_bloom.append((it+2,percs[HYBRID]))
-    x_list_dag_height.append((it+2,percs[HEIGHT]))
+        for process in processes:
+            process.join()
+
+        nodes = []
+        for s in states:
+            nodes.append(s.G.nodes())
+
+        for n in nodes:
+            percs.append(analyse_log(n))
+
+        x_list.append((it + 2,percs[0]))
+        x_list_bloom.append((it + 2,percs[BLOOM]))
+        x_list_hybrid_bloom.append((it+2,percs[HYBRID]))
+        x_list_dag_height.append((it+2,percs[HEIGHT]))
 
     os.remove(a)
 
@@ -157,7 +168,7 @@ def simulation_paramters():
 
 def extract_data(array):
     array = list(array)
-    array = sorted(array, key=lambda array: array[0])
+    array = sorted(array, key=lambda __x: __x[0])
     array = list(zip(*array))
     x = np.array(array[0])
     y = np.array(array[1])
@@ -165,20 +176,21 @@ def extract_data(array):
 
 if __name__ == '__main__':
 
-    limit = 10
+    limit = 500
 
     import matplotlib.pyplot as plt
 
     # parameters = simulation_paramters()
-    iterations = 3
+    iterations = 1
     parameters = [[60, 'skewed', 'random', 'skewed', False, 2, 500]]
+    start = time.time()
     for pa in parameters:
         count = 0
         first = True
         total_x_data = None
         total_y_data = None
         st_dev_data = []
-        for i in range(iterations):
+        for j in range(iterations):
             with multiprocessing.Manager() as manager:
                 x_list = manager.list()
                 x_list_bloom = manager.list()
@@ -202,8 +214,7 @@ if __name__ == '__main__':
                 data = extract_data(x_list)
                 x_lamport,y_lamport = data[0],data[1]
                 data = extract_data(x_list_bloom)
-                x_bloom,y_bloom \
-                    = data[0],data[1]
+                x_bloom,y_bloom = data[0],data[1]
                 data = extract_data(x_list_hybrid_bloom)
                 x_hybrid_bloom,y_hybrid_bloom = data[0],data[1]
                 data = extract_data(x_list_dag_height)
@@ -256,4 +267,8 @@ if __name__ == '__main__':
             ax.set(xlabel='Node Count', ylabel='Successful Classifications')
         fig.tight_layout()
         fig.savefig("plots/" +name+ "/errors")
+
+    end = time.time()
+
+    print(end - start)
 

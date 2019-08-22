@@ -11,14 +11,14 @@ def simulation_paramters():
     event_creation = ["random","skewed"]
     lost_messages = [True,False]
     hash_count = [2,3,5]
-    filter_size = [5,50,100,1000]
-    permutation_one = [dropout_rate,dropout_distr,latency,event_creation,lost_messages]
+    filter_size = [50,100,1000]
+    permutation_one = [dropout_rate,dropout_distr,latency,event_creation,lost_messages,hash_count,filter_size,node_count]
 
 
     first = list(itertools.product(*permutation_one))
     first = [list(elem) for elem in first]
-    print(first)
 
+    return first
 
     permutation_two = [first,hash_count,filter_size]
     second = list(itertools.product(*permutation_two))
@@ -38,4 +38,4 @@ def simulation_paramters():
 
 if __name__ == '__main__':
     print(simulation_paramters())
-
+    print(len(simulation_paramters()))

@@ -30,7 +30,7 @@ class Conflict:
         if self.type == "bloom":
             for m in self.messages:
                 for l in self.messages:
-                    print(m.clock.get_filter(),l.clock.get_filter())
+                    # print(m.clock.get_filter(),l.clock.get_filter())
                     if m is l:
                         continue
                     elif m.clock.happened_before(l.clock)[0] == 1 or m.clock.happened_after(l.clock)[0] == 1:
