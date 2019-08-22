@@ -12,11 +12,13 @@ class Node:
     def __init__(self,id,value=None):
         self.id = id
         self.payload = value if value is not None else 0
-        self.children = []
+        self.children = [None]
         self.set_hash()
         self.dag_height = 0
 
     def add_children(self, child):
+        if self.children[0] is None:
+            self.children = []
         for c in child:
             self.children.append(c)
         self.set_hash()
@@ -31,7 +33,7 @@ class Node:
             self.hash = self.hasher(hash_sum + self.payload)
 
     def is_leaf(self):
-        return True if len(self.children) is 0 else False
+        return True if self.children[0] is None else False
 
     @staticmethod
     def hasher(payload):
@@ -61,9 +63,8 @@ class DAG:
             self.leaves = leaves
             self.graph.add_nodes_from(self.leaves)
             for l in leaves:
-                l.add_children([None])
                 self.add_to_hashmap(self.height_map,0,l)
-                if len(l.children) is not 0:
+                if l.children[0] is not None:
                     raise Exception('cannot construct dag from a non-leaf node')
                     self.leaves = []
                     return
@@ -124,7 +125,6 @@ class DAG:
         self.add_to_hashmap(self.hash_map,node.get_hash(),node)
         self.root = [node]
         self.add_to_hashmap(self.height_map,self.height,node)
-        node.add_children([None])
 
         self.height += 1
 
@@ -135,7 +135,6 @@ class DAG:
             self.add_to_hashmap(self.hash_map,n.get_hash(),n)
             self.root.append(n)
             self.add_to_hashmap(self.height_map, self.height, n)
-            n.add_children([None])
 
         self.height += 1
 
@@ -146,8 +145,10 @@ class DAG:
         node = self.hash_map.get(hash)
         if node is None:
             print("hash is not present in DAG")
+            return node
 
-        return node
+        assert len(node) == 1
+        return node[0]
 
     def merge(self,dag):
         for r in self.root:
@@ -163,37 +164,47 @@ class DAG:
         graph.add_edges_from(list(self.graph.edges()) + list(dag.graph.edges()))
         graph.add_nodes_from(list(self.graph.nodes()) + list(dag.graph.nodes()))
 
-        self.root = dag.root + self.root
-        self.height = max(self.height,dag.height)
-
         if not nx.is_directed_acyclic_graph(graph):
+            exit(5)
             print("Cannot do this operation as it would not be a DAG!")
             return
         else:
-            self.root = dag.root + self.root
-            self.height = max(self.height, dag.height)
-            self.graph = graph
-            self.add(node)
+            new_dag = DAG()
+            new_dag.graph = graph
+            new_dag.leaves = list(set(self.leaves).union(set(dag.leaves)))
+            new_dag.root = dag.root + self.root
+            new_dag.height = max(self.height, dag.height)
+            new_dag.hash_map = DAG.merge_maps(dag.hash_map,self.hash_map)
+            new_dag.height_map = DAG.merge_maps(dag.height_map,self.height_map)
+            new_dag.add(node)
+            return new_dag
 
     def has_hash(self,hash):
         if self.hash_map.get(hash) is None:
             return False
-        return True
+        nodes = self.hash_map.get(hash)
+        for n in nodes:
+            if n.hash == hash:
+                return True
+        return False
 
     def is_sub_dag(self, hash):
         for r in self.root:
-            ancestors = nx.ancestors(self.G,r)
-            for a in ancestors:
+            descendants = nx.descendants(self.graph,r)
+            print(descendants)
+            for a in descendants:
                 if a.hash == hash:
                     return True
 
         return False
 
     def augmented_is_sub_dag(self,hash,height):
-        node_list = self.height_map.get(hash)
+        node_list = self.height_map.get(height)
         for n in node_list:
-            ancestors = nx.ancestors(self.G,n)
-            for a in ancestors:
+            if n.hash == hash:
+                return True
+            descendants = nx.descendants(self.graph,n)
+            for a in descendants:
                 if a.hash == hash:
                     return True
 
@@ -202,11 +213,35 @@ class DAG:
     @staticmethod
     def add_to_hashmap(map,key,element):
         if map.get(key) is None:
-            map[key] = set(element)
+            map[key] = [element]
         else:
             temp = map.get(key)
-            temp.add(element)
+            temp.append(element)
             map[key] = temp
+
+    @staticmethod
+    def merge_maps(map1,map2):
+        keys1 = map1.keys()
+        keys2 = map2.keys()
+
+        new_map = {}
+        new_keys = list(set(keys1).union(set(keys2)))
+        for n in new_keys:
+            temp = []
+            x = map1.get(n)
+            if x is not None:
+                temp += x
+            x = map2.get(n)
+            if x is not None:
+                temp += x
+            temp = list(set(temp))
+            new_map[n] = temp
+
+        return new_map
+
+    def draw_graph(self,filename):
+        p = nx.drawing.nx_pydot.to_pydot(self.graph)
+        p.write_png(filename)
 
 
 if __name__ == '__main__':

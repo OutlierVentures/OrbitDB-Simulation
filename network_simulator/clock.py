@@ -34,13 +34,13 @@ class Clock(ABC):
 
 class LamportClock(Clock):
 
-    def __init__(self,id=None,time=None):
+    def __init__(self,id=None,time=None,dag=False):
         global counter
         self.time = 0 if time is None else time
         self.id = self.time if id is None else id
         self.type = "lamport"
         self.dag_height = 0
-        self.dag = False
+        self.dag = dag
 
     def send_event(self,item=None):
         self.increment()
@@ -60,10 +60,10 @@ class LamportClock(Clock):
     def merge(self,clock):
         self.time = max(self.time, clock.time) + 1
         self.id = max(self.id,clock.id)
-        return LamportClock(self.id, self.time)
+        return LamportClock(self.id, self.time,self.dag)
 
     def get_clock(self):
-        return LamportClock(self.id,self.time)
+        return LamportClock(self.id,self.time,self.dag)
 
     def get_id(self):
         return self.time

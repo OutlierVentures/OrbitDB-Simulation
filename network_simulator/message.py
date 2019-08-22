@@ -1,5 +1,6 @@
 import copy
 
+from DAG.merkle_dag import DAG
 from bloom_clock.bloom_clock import BloomClock,HybridLamportBloom
 from bloom_clock.bloom_clock_operations import *
 from crdt.gset import GSet
@@ -9,6 +10,7 @@ temp = 0
 
 class Message(object):
     base_size = 1
+
     def __init__(self,sender,receiver,sending_time,data=None):
         self.sender = sender
         self.receiver = receiver
@@ -24,8 +26,8 @@ class Message(object):
         temp += 1
         self.type = None
         self.log = None
-        self.clock_changed = False
         self.dag = None
+        self.clock_changed = False
         
     @property
     def size(self):
@@ -64,6 +66,8 @@ class Message(object):
             self.clock = clock
             self.id = self.sender.id
             self.type = clock.type
+            if self.type == 'lamport' and clock.dag:
+                self.type = 'dag-height'
             self.clock_changed = True
 
     def add_log(self,log):
@@ -89,7 +93,7 @@ class Message(object):
             return self.sort_by_hybrid_bloom(other)
 
         elif self.type == "dag-height":
-            return self.sort_by_dag_height()
+            return self.sort_by_dag_height(other)
 
         else:
             return self.sort_by_lamport(other)
@@ -172,11 +176,12 @@ class Message(object):
         #     # print("lamport returning true")
 
         # print("trying to print some id's: ", self.id,other.id)
-
-        if self.get_dag_height() > other.dag_height():
-            return True
+        # if self.get_dag_height() > other.get_dag_height():
+        #     return True
 
         if dist == 0 and self.id != other.id:
+            if self.get_dag_height() > other.get_dag_height():
+                return True
             return True if self.id < other.id else False
 
         print(self.sender.name, " ---- ", other.sender.name)

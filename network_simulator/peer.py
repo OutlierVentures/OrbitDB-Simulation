@@ -90,8 +90,10 @@ class Peer(object):
         self.handle_message_backlog(timestamp)
 
     def send(self,msg):
+        print(self.name," sending a message")
         self.clock.send_event(id(msg))
         msg.set_clock(self.clock.get_clock())
+        print(self.name," adding to opset")
         self.add_to_opset(msg)
         if self.is_dropped:
             # print("putting this message into the pending queue: " + str(msg))
@@ -121,16 +123,12 @@ class Peer(object):
         self.clock = self.clock.receive_event(msg.clock)
         print(self.name + " receiving message from " + msg.sender.name, msg.temp)
         self.add_to_opset(msg)
-        if dag:
-            self.add_to_dag(msg)
 
     def handle_message_backlog(self,timestamp):
         self.pending_messages = sorted(self.pending_messages)
         while len(self.pending_messages):
             m = self.pending_messages.pop(0)
             receivers = m.get_receivers()
-            self.add_to_opset(m)
-            self.add_to_dag(m)
             if not self.lose_messages:
                 m.readjust(timestamp)
                 for r in receivers:
@@ -171,9 +169,7 @@ class Peer(object):
             print("ignore")
 
         for o in ops:
-            self.handle_message(o,time,dag=False)
-
-        self.add_to_dag(ops)
+            self.handle_message(o,time)
 
     def add_to_opset(self,op):
         assert isinstance(op,Message)
@@ -183,24 +179,29 @@ class Peer(object):
             print("about to perform a merge between ",self.name,op.sender.name)
             self.operations = self.operations.merge(op.get_log())
             self.dag = self.dag.merge(op.dag)
+            assert op.dag is not None
             # op.sender.operations = self.operation
+
         else:
+            self.dag.add(Node(id(op),op))
+            op.set_dag(self.dag)
             self.operations.add(op)
             op.add_log(self.operations)
 
-    def add_to_dag(self,op):
-        if isinstance(op,Iterable):
-            toAdd = []
-            for o in op:
-                toAdd.append(Node(id(o),o))
-            self.dag.add_multiple(toAdd)
 
-        else:
-            if op.sender is not self:
-                self.dag = self.dag.merge(op.dag)
-            else:
-                self.dag.add(Peer(Node(id(op),op)))
-                op.set_dag(self.dag)
+
+    #
+    # def add_to_dag(self,op):
+    #     print(self.name, " in the else block")
+    #     if op.sender is not self:
+    #         assert op.dag is not None
+    #         self.dag = self.dag.merge(op.dag)
+    #     else:
+    #         print(self.name, " dag added")
+    #         assert self.dag is not None
+    #
+    #         op.set_dag(self.dag)
+    #         assert op.dag is not None
 
     def change_message_protocol(self):
         self.lose_messages = True
