@@ -34,10 +34,8 @@ def simulation_paramters():
 
         new.append(temp)
 
-    print(new)
-
     return new
 
 if __name__ == '__main__':
-    simulation_paramters()
+    print(simulation_paramters())
 

@@ -17,15 +17,15 @@ class GSet(StateCRDT,OrderedSet):
 
     def merge(self, other):
         assert isinstance(other,GSet)
-        print("Pre merge:")
-        print(self._payload)
-        print(other._payload)
+        # print("Pre merge:")
+        # print(self._payload)
+        # print(other._payload)
         merged = list(self._payload.union(other._payload))
         # print("*******************      PERFORMING MERGE    ***************")
         # print(merged)
         merged.sort()
-        print("--")
-        print(merged)
+        # print("--")
+        # print(merged)
         return GSet(merged)
 
     def compare(self, other):

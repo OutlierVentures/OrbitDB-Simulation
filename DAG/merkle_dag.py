@@ -144,7 +144,7 @@ class DAG:
     def get_node(self,hash):
         node = self.hash_map.get(hash)
         if node is None:
-            print("hash is not present in DAG")
+            # print("hash is not present in DAG")
             return node
 
         assert len(node) == 1
@@ -165,8 +165,8 @@ class DAG:
         graph.add_nodes_from(list(self.graph.nodes()) + list(dag.graph.nodes()))
 
         if not nx.is_directed_acyclic_graph(graph):
-            exit(5)
-            print("Cannot do this operation as it would not be a DAG!")
+            # exit(5)
+            # print("Cannot do this operation as it would not be a DAG!")
             return
         else:
             new_dag = DAG()
@@ -191,7 +191,7 @@ class DAG:
     def is_sub_dag(self, hash):
         for r in self.root:
             descendants = nx.descendants(self.graph,r)
-            print(descendants)
+            # print(descendants)
             for a in descendants:
                 if a.hash == hash:
                     return True

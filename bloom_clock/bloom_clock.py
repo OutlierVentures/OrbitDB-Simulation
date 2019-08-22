@@ -141,8 +141,8 @@ class BloomClock(Clock):
             elif _filter[i] > _other[i]:
                 new_filter.append(_filter[i])
 
-        print(a.id)
-        print(b.id)
+        # print(a.id)
+        # print(b.id)
         id = max(a.id,b.id)
         # print("new id is: ",id)
 

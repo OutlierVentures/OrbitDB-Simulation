@@ -13,8 +13,8 @@ class Conflict:
         self.comparisons = 1 if self.len == 2 else (self.len*(self.len - 1))/2
         self.type = type
 
-        print(self.len)
-        print(self.comparisons)
+        # print(self.len)
+        # print(self.comparisons)
 
         self.incorrect_classifications = 0
         self.correct_classifications = 0
@@ -50,12 +50,12 @@ class Conflict:
                         else:
                             return False
 
-        print("all events are seemingly concurrent")
+        # print("all events are seemingly concurrent")
         return True
 
     def all_events_concurrent(self):
 
-        print(self.messages)
+        # print(self.messages)
         for m in self.messages:
             for l in self.messages:
                 if m is l:
@@ -64,7 +64,7 @@ class Conflict:
                     if m.time_sent == l.time_sent:
                         continue
                     else:
-                        print("none concurrent events")
+                        # print("none concurrent events")
                         return False
 
         return True
@@ -80,9 +80,9 @@ class Conflict:
                 counter += 1
 
         self.correct_classifications = self.comparisons - self.incorrect_classifications
-        print("adding in " + str(self.correct_classifications) + " correct classifications")
-        print(self.messages)
-        print("adding in " + str(self.incorrect_classifications) + " incorrect classifications")
+        # print("adding in " + str(self.correct_classifications) + " correct classifications")
+        # print(self.messages)
+        # print("adding in " + str(self.incorrect_classifications) + " incorrect classifications")
 
     @staticmethod
     def is_incorrect_pair(a,b):

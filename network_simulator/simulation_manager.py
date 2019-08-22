@@ -103,7 +103,7 @@ class SimulationManager:
         #for i in range(self.current_time,self.time_limit * 20):
 
         while self._messageCount < self._messagesGenerated:
-            print("running Simulation iteration %d" % self.current_time)
+            # print("running Simulation iteration %d" % self.current_time)
 
             self.reactivate_nodes()
             self.send_message(self.get_next_message())
@@ -112,7 +112,7 @@ class SimulationManager:
             self.tick()
             #self.draw_network()
 
-        print(str(self._messageCount) + " = " + str(self._messagesGenerated))
+        # print(str(self._messageCount) + " = " + str(self._messagesGenerated))
 
         # for n in self.G.nodes():
         #     print "-----"
@@ -125,7 +125,7 @@ class SimulationManager:
         temp = set()
         for n in self._droppedNodes:
             if self.current_time == n.reactivation_time:
-                print(n.name + " reconnected")
+                # print(n.name + " reconnected")
                 n.reactivate(self.current_time)
                 self._activeNodes.add(n)
                 temp.add(n)
@@ -200,7 +200,7 @@ class SimulationManager:
         current_dropouts = set()
         reconnections = [[] for i in range(self.timeLimit * 1000)]
 
-        print(list(self.G.nodes()))
+        # print(list(self.G.nodes()))
         allNodes = numpy.array(self.G.nodes())
         np.random.shuffle(allNodes)
         bias_weights = [(x /(len(allNodes) + 1)) for x in range(1,len(allNodes)+1)]
@@ -291,8 +291,8 @@ class SimulationManager:
             sleep(0.1)
 
         bar.finish()
-        print(self.messages)
-        print(self.disruptions)
+        # print(self.messages)
+        # print(self.disruptions)
         return counter
 
     def connect_hubs(self):
@@ -337,7 +337,7 @@ class SimulationManager:
 
     def draw_network(self):
         pos = nx.spring_layout(self.G)
-        print(self.G.nodes())
+        # print(self.G.nodes())
         node_list = ['red' if not node in self.hubs else 'skyblue' for node in self.G.nodes()]
 
         hubs = self.hubs

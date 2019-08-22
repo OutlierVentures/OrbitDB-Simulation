@@ -35,12 +35,12 @@ class BloomFilter(object):
             # create digest for given item.
             # i work as seed to mmh3.hash() function
             # With different seed, digest created is different
-            print(self.size)
+            # print(self.size)
             digest = mmh3.hash(item, i) % self.size
             digests.append(digest)
 
             # Increment index in bit_array
-            print("incrementing index: " + str(digest))
+            # print("incrementing index: " + str(digest))
             self.bit_array[digest] +=1
 
     def check(self, item):

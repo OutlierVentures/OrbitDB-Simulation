@@ -67,7 +67,7 @@ class Peer(object):
                     self.add_to_message_queue(o)
 
         elif len(self.messages[time]) > 1:
-            print("conflict resolution time")
+            # print("conflict resolution time")
             self.conflict_resolution(time)
         elif len(self.messages[time]) == 1:
             m = self.messages[time][0]
@@ -90,10 +90,10 @@ class Peer(object):
         self.handle_message_backlog(timestamp)
 
     def send(self,msg):
-        print(self.name," sending a message")
+        # print(self.name," sending a message")
         self.clock.send_event(id(msg))
         msg.set_clock(self.clock.get_clock())
-        print(self.name," adding to opset")
+        # print(self.name," adding to opset")
         self.add_to_opset(msg)
         if self.is_dropped:
             # print("putting this message into the pending queue: " + str(msg))
@@ -105,7 +105,7 @@ class Peer(object):
 
     def receive(self, msg):
         # print "RECEIVING TO BE CONSUMED AT:  " + str(msg.time_sent) + " + " + str(delay)
-        print(msg.receive_times)
+        # print(msg.receive_times)
         self.add_to_messages(msg, msg.receive_times[self.name])
 
     def add_to_messages(self, msg, index):
@@ -121,7 +121,7 @@ class Peer(object):
         self.messages[time][i] = None
         self.incrementer()
         self.clock = self.clock.receive_event(msg.clock)
-        print(self.name + " receiving message from " + msg.sender.name, msg.temp)
+        # print(self.name + " receiving message from " + msg.sender.name, msg.temp)
         self.add_to_opset(msg)
 
     def handle_message_backlog(self,timestamp):
@@ -145,7 +145,7 @@ class Peer(object):
             self.incrementer()
 
     def conflict_resolution(self,time):
-        print("resolving conflicts....")
+        # print("resolving conflicts....")
         c = self.messages[time]
         random.shuffle(c)
         ops = []
@@ -166,7 +166,8 @@ class Peer(object):
             # self.stats.record_conflict(confl)
             self.stats.record_conflict(confl)
         else:
-            print("ignore")
+            pass
+            # print("ignore")
 
         for o in ops:
             self.handle_message(o,time)
@@ -176,7 +177,7 @@ class Peer(object):
         assert isinstance(op.sender.operations,GSet)
 
         if op.sender is not self:
-            print("about to perform a merge between ",self.name,op.sender.name)
+            # print("about to perform a merge between ",self.name,op.sender.name)
             self.operations = self.operations.merge(op.get_log())
             self.dag = self.dag.merge(op.dag)
             assert op.dag is not None
@@ -187,8 +188,6 @@ class Peer(object):
             op.set_dag(self.dag)
             self.operations.add(op)
             op.add_log(self.operations)
-
-
 
     #
     # def add_to_dag(self,op):
