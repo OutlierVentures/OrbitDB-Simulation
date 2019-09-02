@@ -27,7 +27,7 @@ class Message(object):
         self.log = None
         self.dag = None
         self.clock_changed = False
-        
+
     @property
     def size(self):
         return self.base_size + len(repr(self.data))

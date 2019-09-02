@@ -26,9 +26,3 @@ class SimulationAnalyser:
             self.percent_correct = (self.correct/self.total_conflicts) * 100
 
         print("Algorithm performance: " + str(self.percent_correct) + "%")
-
-
-
-
-
-

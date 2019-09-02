@@ -4,3 +4,6 @@
 .idea
 network_simulator_experimental/*
 network_simulator/network
+venv/*
+*/__pycache__/*
+.idea/*

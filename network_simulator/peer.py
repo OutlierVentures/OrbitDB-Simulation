@@ -38,6 +38,7 @@ class Peer(object):
         self.operations = GSet()
 
         self.dag = DAG()
+        self.dag_operations = False
 
         # env.process(self.run())
 
@@ -50,6 +51,7 @@ class Peer(object):
         if type == 'hybrid-bloom':
             self.clock = HybridLamportBloom(hash_count=self.hash_count,filter_size=self.filter_size)
         if type == 'dag-height':
+            self.dag_operations = True
             self.clock.dag = True
 
     def receive_clock_broadcast(self, time):
@@ -179,13 +181,15 @@ class Peer(object):
         if op.sender is not self:
             # print("about to perform a merge between ",self.name,op.sender.name)
             self.operations = self.operations.merge(op.get_log())
-            self.dag = self.dag.merge(op.dag)
-            assert op.dag is not None
+            if self.dag_operations:
+                self.dag = self.dag.merge(op.dag)
+                assert op.dag is not None
             # op.sender.operations = self.operation
 
         else:
-            self.dag.add(Node(id(op),op))
-            op.set_dag(self.dag)
+            if self.dag_operations:
+                self.dag.add(Node(id(op),op))
+                op.set_dag(self.dag)
             self.operations.add(op)
             op.add_log(self.operations)
 

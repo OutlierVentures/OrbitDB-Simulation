@@ -1,3 +1,6 @@
+import sys
+sys.path.append("~/hb2917/")
+
 from collections import Iterable
 from network_simulator.message import Message
 
@@ -89,4 +92,3 @@ class Conflict:
         if a.time_sent > b.time_sent:
             return True
         return False
-

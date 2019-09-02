@@ -1,0 +1,13 @@
+###################################
+# CONDOR SUBMISSION FILE          #
+###################################
+
+executable      = MC_Combinations_Of_Two_Condor.sh
+arguments       = $(process)
+
+output          = output.$(process).out
+error           = error.$(process).err
+
+Queue 2
+
+#136
