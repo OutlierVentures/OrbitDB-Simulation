@@ -1,8 +1,7 @@
- **/__pycache__
+**/__pycache__
 **/.pyc
 **/venv
 .idea
 .vscode
 network_simulator_experimental/*
 network_simulator/network
-
