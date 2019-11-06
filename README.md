@@ -9,7 +9,8 @@
     </a>
     <br><br>
     Simulating the OrbitDB database infrastructure to run<br>
-    experiments with new approaches to clock sorting.
+    experiments with new approaches to clock sorting.<br>
+    Author: <a href="https://github.com/harrybutt">Harry Butt</a>
     <br><br>
     <i>A project in the Convergence Stack.</i>
 </p>
